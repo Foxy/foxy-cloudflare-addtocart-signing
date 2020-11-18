@@ -2,7 +2,7 @@
   "private": true,
   "name": "foxy-cloudflare-addtocart-signing",
   "version": "1.0.0",
-  "description": "A template for kick starting a Cloudflare Workers project",
+  "description": "Foxy HMAC Product Verification CF Worker",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
