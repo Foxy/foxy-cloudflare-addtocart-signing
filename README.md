@@ -22,7 +22,10 @@ If you have already set this attribute, you do not need to change anything in yo
 Here is an example using a link:
 
 ```html
-<a href="https://YOURCARTDOMAIN.foxycart.com/cart?name=ProductName&code=741&price=19.99">Buy product</a>
+<a
+  href="https://YOURCARTDOMAIN.foxycart.com/cart?name=ProductName&code=741&price=19.99"
+  >Buy product</a
+>
 ```
 
 ### Fork this repository
@@ -41,13 +44,13 @@ There you will be able to set your secrets.
 
 Using the "New secret" button create the following secrets:
 
-| Secret | Description | 
-| -------- | ----------- | 
-| `CF_ACCOUNT_ID` | This is your Cloudflare Id. To get your ID, click the "Menu" next to Cloudflare's logo and, under "Products", click Workers. Your Client ID will be on the right sidebar. [How to get my Cloudflare Id](https://developers.cloudflare.com/workers/learning/getting-started#6a-obtaining-your-account-id-and-zone-id)|
-| `CF_API_TOKEN` | This is your API token. Click the "API Tokens" tab. Select an appropriate token or create a new one. If you'll use an existing, on the rightmost menu choose "Roll" and copy the token. [How to get my Cloudflare API token](https://developers.cloudflare.com/workers/learning/getting-started#option-1-obtaining-your-api-token-recommended)
-| `FX_CLIENT_ID`| This is your Foxy client id. You can find this value in your FoxyCart administration page in the link "integrations" ||
-| `FX_CLIENT_SECRET`| This is your Foxy client secret. This is used to authenticate to your store to get access tokens.|
-| `FX_REFRESH_TOKEN`| This token is used to generate new access tokens as old ones expire. You can find this value in your FoxyCart administration page in the link "integrations" |
+| Secret             | Description                                                                                                                                                                                                                                                                                                                                    |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CF_ACCOUNT_ID`    | This is your Cloudflare Id. To get your ID, click the "Menu" next to Cloudflare's logo and, under "Products", click Workers. Your Client ID will be on the right sidebar. [How to get my Cloudflare Id](https://developers.cloudflare.com/workers/learning/getting-started#6a-obtaining-your-account-id-and-zone-id)                           |
+| `CF_API_TOKEN`     | This is your API token. Click the "API Tokens" tab. Select an appropriate token or create a new one. If you'll use an existing, on the rightmost menu choose "Roll" and copy the token. [How to get my Cloudflare API token](https://developers.cloudflare.com/workers/learning/getting-started#option-1-obtaining-your-api-token-recommended) |
+| `FX_CLIENT_ID`     | This is your Foxy client id. You can find this value in your FoxyCart administration page in the link "integrations"                                                                                                                                                                                                                           |
+| `FX_CLIENT_SECRET` | This is your Foxy client secret. This is used to authenticate to your store to get access tokens.                                                                                                                                                                                                                                              |
+| `FX_REFRESH_TOKEN` | This token is used to generate new access tokens as old ones expire. You can find this value in your FoxyCart administration page in the link "integrations"                                                                                                                                                                                   |
 
 ### Deploy to Cloudflare Workers
 
@@ -55,5 +58,12 @@ If you forked this repository, simply click the Actions page, then click the "De
 
 If you are using wrangler, use `wrangler config` to set your account details, `wrangler secret` to configure your secrets and `wrangler publish` to deploy your worker.
 
+# Development
 
+- Install wrangler
+- Create your development version of the `wrangler.toml` file
+- Set your `account_id` and run `wrangler config`
 
+### Manual testing
+
+Use `wrangler preview -c dev.wrangler.toml` to start an environment with your worker running on any website.
