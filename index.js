@@ -9,7 +9,7 @@ let token;
  */
 
 /** Cloudflare Worker method */
-addEventListener("fetch", event => {
+addEventListener("fetch", (event) => {
   event.respondWith(handleRequest(event.request));
 });
 
@@ -20,14 +20,13 @@ addEventListener("fetch", event => {
  * @returns {Response|Promise<Response>} response
  */
 async function handleRequest(request) {
-  let response;
   const now = new Date().getTime();
   // Avoid fetching the access token if it is valid.
   if (!token || now > token.goodUntil) {
     // fetch a new token
     const newToken = await refreshToken();
     // cache the new token
-    token = { ...newToken, goodUntil: now + newToken.expires_in * 1000}
+    token = { ...newToken, goodUntil: now + newToken.expires_in * 1000 };
   }
   if (token) {
     try {
@@ -47,36 +46,40 @@ async function handleRequest(request) {
 /**
  * Refreshes the access_token
  *
- * @return {Token} the retrieved token
+ * @returns {Token} the retrieved token
  */
 async function refreshToken() {
-  const refreshURL = 'https://api.foxycart.com/token';
   // Build headers
   const headers = new Headers();
   headers.append("FOXY-API-VERSION", "1");
-  headers.append("Authorization", `Basic ${btoa(`${FX_CLIENT_ID}:${FX_CLIENT_SECRET}`)}`);
+  headers.append(
+    "Authorization",
+    `Basic ${btoa(`${FX_CLIENT_ID}:${FX_CLIENT_SECRET}`)}`
+  );
   // Build body
   const formData = new FormData();
   formData.append("grant_type", "refresh_token");
   formData.append("refresh_token", FX_REFRESH_TOKEN);
   // Build options
   const requestOptions = {
-    method: 'POST',
-    headers: headers,
     body: formData,
-    redirect: 'follow'
+    headers: headers,
+    method: "POST",
+    redirect: "follow",
   };
   // Fetch
-  const response = await fetch("https://api.foxycart.com/token", requestOptions)
-  const result = await response.json();
-  return result;
+  const response = await fetch(
+    "https://api.foxycart.com/token",
+    requestOptions
+  );
+  return await response.json();
 }
 
 /**
  * Signs an HTML string
  *
  * @param {string} htmlToSign - the html string that will be signed by the API
- * @return {Promise<string>} result - a promise for the signed HTML
+ * @returns {Promise<string>} result - a promise for the signed HTML
  */
 async function signHTML(htmlToSign) {
   // Build headers
@@ -85,13 +88,16 @@ async function signHTML(htmlToSign) {
   headers.append("Authorization", `Bearer ${token.access_token}`);
   // Build options
   const requestOptions = {
-    method: 'POST',
-    headers: headers,
     body: htmlToSign,
-    redirect: 'follow'
+    headers: headers,
+    method: "POST",
+    redirect: "follow",
   };
   // Fetch
-  const response = await fetch("https://api.foxycart.com/encode", requestOptions)
+  const response = await fetch(
+    "https://api.foxycart.com/encode",
+    requestOptions
+  );
   const result = await response.json();
   return result.result;
 }
