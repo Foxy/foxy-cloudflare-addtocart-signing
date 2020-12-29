@@ -1,5 +1,5 @@
 name = "foxy-signer"
-type = "javascript"
+type = "webpack"
 account_id = "CF_ACCOUNT_ID"
 workers_dev = true
 route = ""

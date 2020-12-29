@@ -8,6 +8,7 @@
     "test": "wrangler preview -c dev.wrangler.toml",
     "format": "prettier --write '**/*.{js,css,json,md}'"
   },
+  "type": "module",
   "author": "Foxy.io",
   "license": "MIT",
   "devDependencies": {
