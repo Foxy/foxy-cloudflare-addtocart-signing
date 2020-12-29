@@ -1,103 +1,459 @@
-let token;
+// global FX_CLIENT_SECRET
+/**
+ type CodesDict = {
+  [key: number]: {
+    code: string;
+    parent: string;
+  };
+};
+ **/
 
 /**
- * @typedef {Object} Token
- * @property {string} access_token - The access_token value
- * @property {number} expires_in - The number in seconds from now when the token will expire
- * @property {string} token_type - The token type. For this application it should be always "Bearer"
- * @property {string} scope - The token scope: the token permission and token store
+ * HMAC signing utility. Methods are named after what it is to be signed, to
+ * allow for an easy to read code in the user application.
+ *
+ * @tutorial https://wiki.foxycart.com/v/2.0/hmac_validation
+ * @example const signer = new Signer(mySecret); // or const signer = new Signer(); signer.setSecret(mySecret);
+ *          signer.signHtml('<html lang="en">...</html>'); // signs a URL
+ *          signer.signFile("/var/www/html/src/.../index.html", "/var/www/html/target/.../index.html"); // signs an HTML file
+ *          signer.signUrl("http://..."); // signs a URL
  */
+class Signer {
 
-/** Cloudflare Worker method */
-addEventListener("fetch", (event) => {
-  event.respondWith(handleRequest(event.request));
-});
+  /**
+   * Creates an instance of this class.
+   *
+   * @param {string} secret OAuth2 client secret for your integration.
+   * @param {Object} codes
+   */
+  constructor(secret, codes) {
+    this.__secret = secret;
+    this.__codes = codes;
+  }
+
+  /**
+   * Signs a query string.
+   * All query fields withing the query string will be signed, provided it is a proper URL and there is a code field
+   *
+   * @param {string} urlStr Full URL including the query string that needs to be signed.
+   * @returns {Promise<string>} the signed query string.
+   */
+  async signUrl(urlStr) {
+    // Build a URL object
+    if (Signer.__isSigned(urlStr)) {
+      console.error('Attempt to sign a signed URL', urlStr);
+      return urlStr;
+    }
+    // Do not change invalid URLs
+    let url;
+    let stripped;
+    try {
+      url = new URL(urlStr);
+      stripped = new URL(url.origin);
+    } catch (e) {
+      //console.assert(e.code === "ERR_INVALID_URL");
+      return urlStr;
+    }
+    const originalParams = url.searchParams;
+    const newParams = stripped.searchParams;
+    const code = Signer.__getCodeFromURL(url);
+    // If there is no code, return the same URL
+    if (!code) {
+      return urlStr;
+    }
+    // sign the url object
+    for (const p of originalParams.entries()) {
+      const signed = (await this.__signQueryArg(decodeURIComponent(p[0]), decodeURIComponent(code), decodeURIComponent(p[1]))).split(
+        '='
+      );
+      newParams.set(signed[0], signed[1]);
+    }
+    url.search = newParams.toString();
+    return Signer.__replaceUrlCharacters(url.toString());
+  }
+
+  /**
+   * Signs input name.
+   *
+   * @param {string} name Name of the input element.
+   * @param {string} code Product code.
+   * @param {string} parentCode Parent product code.
+   * @param {string|number} value Input value.
+   * @returns {Promise<string>} the signed input name.
+   */
+  async signName(name, code, parentCode = '', value) {
+    name = name.replace(/ /g, '_');
+    const signature = await this.__signProduct(code + parentCode, name, value);
+    const encodedName = encodeURIComponent(name);
+    return Signer.__buildSignedName(encodedName, signature, value);
+  }
+
+  /**
+   * Signs input value.
+   *
+   * @param {string} name Name of the input element.
+   * @param {string} code Product code.
+   * @param {string} parentCode Parent product code.
+   * @param {string|number} value Input value.
+   * @returns {Promise<string>} the signed value.
+   */
+  async signValue(name, code, parentCode = '', value) {
+    name = name.replace(/ /g, '_');
+    const signature = await this.__signProduct(code + parentCode, name, value);
+    return Signer.__buildSignedValue(signature, value);
+  }
+
+  /**
+   * Signs a product composed of code, name and value.
+   *
+   * @param {string} code of the product.
+   * @param {string} name name of the product.
+   * @param {string} value of the product.
+   * @returns {Promise<string>} the signed product.
+   * @private
+   */
+  async __signProduct(code, name, value) {
+    const key = await this.__getKey();
+    return await this.__message(code + name + Signer.__valueOrOpen(value), key);
+  }
+
+  /**
+   * Signs a single query argument to be used in `GET` requests.
+   *
+   * @param name of the argument.
+   * @param code of the product.
+   * @param value of the argument.
+   * @returns the signed query argument.
+   * @private
+   */
+  async __signQueryArg(name, code, value) {
+    name = name.replace(/ /g, '_');
+    code = code.replace(/ /g, '_');
+    const signature = await this.__signProduct(code, name, value);
+    const encodedName = encodeURIComponent(name).replace(/%20/g, '+');
+    const encodedValue = encodeURIComponent(Signer.__valueOrOpen(value)).replace(/%20/g, '+');
+    return Signer.__buildSignedQueryArg(encodedName, signature, encodedValue);
+  }
+
+  /**
+   * Signs an input element.
+   *
+   * @param {HTMLInputElement} el the input element
+   * @returns {Promise<HTMLInputElement>}the signed element
+   */
+  async signInput(el) {
+    const name = el.getAttribute('name');
+    if (!name) return el;
+    const namePrefix = Signer.__splitNamePrefix(name);
+    const nameString = namePrefix[1];
+    const prefix = namePrefix[0];
+    const code = this.__codes[prefix].code;
+    const parentCode = this.__codes[prefix].parent;
+    const value = el.value;
+    const signedName = await this.signName(nameString, code, parentCode, value);
+    el.setAttribute('name', prefix + ':' + signedName);
+    return el;
+  }
+
+  /**
+   * Signs a texArea element.
+   *
+   * @param {HTMLTextAreaElement} el the textArea element.
+   * @returns {Promise<HTMLTextAreaElement>} the signed textarea element.
+   */
+  async signTextArea(el) {
+    const namePrefix = Signer.__splitNamePrefix(el.getAttribute('name'));
+    const nameString = namePrefix[1];
+    const prefix = namePrefix[0];
+    const code = this.__codes[prefix].code;
+    const parentCode = this.__codes[prefix].parent;
+    const value = '';
+    const signedName = await this.signName(nameString, code, parentCode, value);
+    el.setAttribute('name', prefix + ':' + signedName);
+    return el;
+  }
+
+  /**
+   * Sign an option element.
+   * Signatures are added to the value attribute on options.
+   * This function may also be used to sign radio buttons.
+   *
+   * @param {HTMLOptionElement|HTMLInputElement} el the option element to be signed.
+   * @returns {Promise<HTMLOptionElement|HTMLInputElement>}the signed option element.
+   */
+  async signOption(el) {
+    // Get the name parameter, either from the "select"
+    // parent element of an option tag or from the name
+    // attribute of the input element itself
+    let n = el.name;
+    if (n === undefined) {
+      const p = el.parentElement;
+      n = p.name;
+    }
+    const namePrefix = Signer.__splitNamePrefix(n);
+    const nameString = namePrefix[1];
+    const prefix = namePrefix[0];
+    const code = this.__codes[prefix].code;
+    const parentCode = this.__codes[prefix].parent;
+    const value = el.value;
+    const signedValue = await this.signValue(nameString, code, parentCode, value);
+    el.setAttribute('value', prefix + ':' + signedValue);
+    return el;
+  }
+
+  /**
+   * Signs a radio button. Radio buttons use the value attribute to hold their signatures.
+   *
+   * @param {HTMLInputElement} el, the radio button element.
+   * @returns {Promise<HTMLInputElement>} the signed radio button.
+   */
+  signRadio(el) {
+    return this.signOption(el);
+  }
+
+  /**
+   * Splits a string using the prefix pattern for foxy store.
+   * The prefix pattern allows for including more than a single product in a given GET or POST request.
+   *
+   * @param {string} name the name to be separated into prefix and name.
+   * @returns {Array} an array with [prefix, name]
+   * @private
+   */
+  static __splitNamePrefix(name) {
+    const namePrefix = name.split(':');
+    if (namePrefix.length === 2) {
+      return [parseInt(namePrefix[0], 10), namePrefix[1]];
+    }
+    return [0, name];
+  }
+
+  /**
+   * Builds the value for the signed "name" attribute value given it components.
+   *
+   * @param {string} name that was signed
+   * @param {string} signature the resulting signature
+   * @param {string|number} value of the field that, if equal to --OPEN-- identifies an editable field.
+   * @returns {string} the signed value for the "name" attribute
+   * @private
+   */
+  static __buildSignedName(name, signature, value) {
+    const open = Signer.__valueOrOpen(value) === '--OPEN--' ? '||open' : '';
+    return `${name}||${signature}${open}`;
+  }
+
+  /**
+   * Builds a signed name given it components.
+   *
+   * @param {string} signature the resulting signature.
+   * @param {string|number} value the value signed.
+   * @returns {string|number} the built signed value
+   * @private
+   */
+  static __buildSignedValue(signature, value) {
+    const open = Signer.__valueOrOpen(value) === '--OPEN--' ? '||open' : value;
+    return `${open}||${signature}`;
+  }
+
+  /**
+   * Builds a signed query argument given its components.
+   *
+   * @param {string} name the argument name.
+   * @param {string} signature the resulting signature.
+   * @param {string|number} value the value signed.
+   * @returns {string} the built query string argument.
+   * @private
+   */
+  static __buildSignedQueryArg(name, signature, value) {
+    return `${name}||${signature}=${value}`;
+  }
+
+  /**
+   * Returns the value of a field on the `--OPEN--` string if the value is not defined.
+   * Please, notice that `0` is an acceptable value.
+   *
+   * @param {string|number|undefined} value of the field.
+   * @returns {string|number} '--OPEN--' or the given value.
+   * @private
+   */
+  static __valueOrOpen(value) {
+    if (value === undefined || value === '') {
+      return '--OPEN--';
+    }
+    return value;
+  }
+
+  /**
+   * Check if a href string is already signed. Signed strings contain two consecutive pipes
+   * followed by 64 hexadecimal characters.
+   *
+   * This method **does not validates the signature**.
+   * It only checks if the format of the string is evidence that it is signed.
+   *
+   * @param {string} url the potentially signed URL.
+   * @returns {boolean} true if the string format is evidence that it is already signed.
+   * @private
+   */
+  static __isSigned(url) {
+    return url.match(/^.*\|\|[0-9a-fA-F]{64}/) != null;
+  }
+
+  /**
+   * Returns the code from a URL or undefined if it does not contain a code.
+   *
+   * @param {URL} url the URL to retrieve the code from.
+   * @returns {string} the code found, or undefined if no code was found.
+   * @private
+   */
+  static __getCodeFromURL(url) {
+    for (const p of Array.from(url.searchParams)) {
+      if (p[0] === 'code') {
+        return p[1];
+      }
+    }
+  }
+
+  /**
+   * Replace some of the characters encoded by `encodeURIComponent()`.
+   *
+   * @param {string} urlStr the URL string.
+   * @returns {string} a cleaned URL string.
+   * @private
+   */
+  static __replaceUrlCharacters(urlStr) {
+    return urlStr.replace(/%7C/g, '|').replace(/%3D/g, '=').replace(/%2B/g, '+');
+  }
+
+  /**
+   * Signs a simple message. This function can only be invoked after the secret has been defined. The secret can be defined either in the construction method as in `new FoxySigner(mySecret)` or by invoking the setSecret method, as in `signer.setSecret(mySecret)`
+   *
+   * @param {string} message the message to be signed.
+   * @param {CryptoKey} key to use to sign the message.
+   * @returns {Promise<string>} signed message.
+   * @private
+   */
+  async __message(message, key) {
+    if (this.__secret === undefined) {
+      throw new Error('No secret was provided to build the hmac');
+    }
+    const encodedMessage = new TextEncoder().encode(message);
+    const signature = await crypto.subtle.sign("HMAC", key, encodedMessage);
+    return btoa(String.fromCharCode(...Array.from(new Uint8Array(signature))));
+  }
+
+  async __getKey() {
+    return crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(this.__secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign', 'verify'],
+    );
+  }
+}
+
+
+/**
+ * CodeDictBuilder fills a CodesDict Object.
+ *
+ * Elements with a attribute name ending with "code" are used to build an object with prefixes, codes and parent code.
+ * This object can be used to find the parent code of a code without the need to search for the parent code element.
+ */
+class CodeDictBuilder {
+
+  constructor(codesDict) {
+    this.codes = codesDict;
+  }
+
+  element(el) {
+    const nameAttr = el.getAttribute('name');
+    const codeValue = el.getAttribute('value');
+    if (nameAttr && nameAttr.match(/^([0-9]{1,3}:)?(parent_)?code/)) {
+      const namePrefix = nameAttr.split(':');
+      const prefix = namePrefix[0];
+      const codeType = namePrefix[1];
+      if (namePrefix.length === 2) {
+        // Store prefix in codes list
+        if (!this.codes[prefix]) this.codes[prefix] = {};
+        this.codes[prefix][codeType] = codeValue;
+      } else {
+        if (!this.codes[0]) this.codes[0] = {};
+        // Allow to push a single code without prefix
+        this.codes[0][nameAttr] = codeValue;
+      }
+    }
+  }
+
+}
+
+class FormRewriter {
+
+  /**
+   * @param {Signer} signer that will be used to sign form items.
+   */
+  constructor(signer) {
+    this.signer = signer;
+  }
+
+  async element(el) {
+    if (!Object.entries(this.signer.__codes).length) return;
+    switch (el.tagName) {
+      case 'input':
+        if (el.getAttribute('type') === 'radio')
+          await this.signer.signRadio(el);
+        else
+          await this.signer.signInput(el);
+        break;
+      case 'option':
+        await this.signer.signOption(el);
+        break;
+      case 'textarea':
+        await this.signer.signTextArea(el);
+        break;
+    }
+  }
+}
+
+class LinkRewriter {
+
+  /**
+   * @param {Signer} signer to be used to sign the URLs query params.
+   */
+  constructor(signer) {
+    this.signer = signer;
+  }
+
+  async element(el) {
+    el.setAttribute('href', await this.signer.signUrl(el.getAttribute('href')));
+  }
+
+}
 
 /**
  * Handles the request
  *
- * @param {Request} request to be handled
+ * @param {Request} req to be handled
  * @returns {Response|Promise<Response>} response
  */
-async function handleRequest(request) {
-  const now = new Date().getTime();
-  // Avoid fetching the access token if it is valid.
-  if (!token || now > token.goodUntil) {
-    // fetch a new token
-    const newToken = await refreshToken();
-    // cache the new token
-    token = { ...newToken, goodUntil: now + newToken.expires_in * 1000 };
-  }
-  if (token) {
-    try {
-      const originalResponse = await fetch(request);
-      const originalHTML = await originalResponse.text();
-      const signedHTML = await signHTML(originalHTML);
-      return new Response(signedHTML, originalResponse);
-    } catch (e) {
-      console.error("Error signing HTML", e);
-      return fetch(request); // Unaltered
-    }
-  } else {
-    return fetch(request); // Unaltered
-  }
+async function handleRequest(req) {
+  if (!FX_CLIENT_SECRET) return fetch(req);
+  const secret = FX_CLIENT_SECRET;
+  const codes = {};
+  const codeBuilder = new CodeDictBuilder(codes);
+  const signer = new Signer(secret, codes);
+  const formRewriter = new FormRewriter(signer);
+  const linkRewriter = new LinkRewriter(signer);
+
+  // Fill the codes object
+  const rewriter = new HTMLRewriter()
+    .on('form[action$="foxycart.com/cart"] [name$=code]', codeBuilder)
+    .on('form[action$="foxycart.com/cart"] input', formRewriter)
+    .on('form[action$="foxycart.com/cart"] select', formRewriter)
+    .on('form[action$="foxycart.com/cart"] textarea', formRewriter)
+    .on('a[href*="foxycart.com/cart"]', linkRewriter);
+  const res = await fetch(req);
+  return rewriter.transform(res);
 }
 
-/**
- * Refreshes the access_token
- *
- * @returns {Token} the retrieved token
- */
-async function refreshToken() {
-  // Build headers
-  const headers = new Headers();
-  headers.append("FOXY-API-VERSION", "1");
-  headers.append(
-    "Authorization",
-    `Basic ${btoa(`${FX_CLIENT_ID}:${FX_CLIENT_SECRET}`)}`
-  );
-  // Build body
-  const formData = new FormData();
-  formData.append("grant_type", "refresh_token");
-  formData.append("refresh_token", FX_REFRESH_TOKEN);
-  // Build options
-  const requestOptions = {
-    body: formData,
-    headers: headers,
-    method: "POST",
-    redirect: "follow",
-  };
-  // Fetch
-  const response = await fetch(
-    "https://api.foxycart.com/token",
-    requestOptions
-  );
-  return await response.json();
-}
-
-/**
- * Signs an HTML string
- *
- * @param {string} htmlToSign - the html string that will be signed by the API
- * @returns {Promise<string>} result - a promise for the signed HTML
- */
-async function signHTML(htmlToSign) {
-  // Build headers
-  const headers = new Headers();
-  headers.append("FOXY-API-VERSION", "1");
-  headers.append("Authorization", `Bearer ${token.access_token}`);
-  // Build options
-  const requestOptions = {
-    body: htmlToSign,
-    headers: headers,
-    method: "POST",
-    redirect: "follow",
-  };
-  // Fetch
-  const response = await fetch(
-    "https://api.foxycart.com/encode",
-    requestOptions
-  );
-  const result = await response.json();
-  return result.result;
-}
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event.request))
+})

@@ -5,14 +5,17 @@
   "description": "Foxy HMAC Product Verification CF Worker",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "wrangler preview -c dev.wrangler.toml",
     "format": "prettier --write '**/*.{js,css,json,md}'"
   },
   "author": "Foxy.io",
   "license": "MIT",
   "devDependencies": {
     "@foxy.io/eslint-config": "^1.0.0",
-    "cz-conventional-changelog": "^3.3.0"
+    "chai": "^4.2.0",
+    "cz-conventional-changelog": "^3.3.0",
+    "mocha": "^8.2.1",
+    "nyc": "^15.1.0"
   },
   "config": {
     "commitizen": {
