@@ -8,10 +8,10 @@
 };
  **/
 
-import { Signer } from './Signer'
-import { CodeDictBuilder } from './CodeBuilder'
-import { FormRewriter } from './FormRewriter'
-import { LinkRewriter } from './LinkRewriter'
+import { Signer } from './src/Signer'
+import { CodeDictBuilder } from './src/CodeBuilder'
+import { FormRewriter } from './src/FormRewriter'
+import { LinkRewriter } from './src/LinkRewriter'
 
 
 /**
