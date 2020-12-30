@@ -5,18 +5,26 @@
   "description": "Foxy HMAC Product Verification CF Worker",
   "main": "index.js",
   "scripts": {
-    "test": "wrangler preview -c dev.wrangler.toml",
+    "build": "webpack",
+    "test": "c8 mocha",
+    "test:manual": "wrangler preview -c dev.wrangler.toml",
     "format": "prettier --write '**/*.{js,css,json,md}'"
   },
   "type": "module",
   "author": "Foxy.io",
   "license": "MIT",
   "devDependencies": {
+    "@cloudflare/workers-types": "^2.1.0",
     "@foxy.io/eslint-config": "^1.0.0",
+    "c8": "^7.3.5",
     "chai": "^4.2.0",
     "cz-conventional-changelog": "^3.3.0",
+    "exports-loader": "^1.1.1",
+    "jsdom": "^16.4.0",
     "mocha": "^8.2.1",
-    "nyc": "^15.1.0"
+    "prettier": "^2.1.2",
+    "source-map-support": "^0.5.19",
+    "webpack": "^5.11.1"
   },
   "config": {
     "commitizen": {

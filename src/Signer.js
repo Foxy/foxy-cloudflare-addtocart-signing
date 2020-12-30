@@ -1,3 +1,38 @@
+
+class Hmac {
+
+  constructor(secret, cryptoEngine = null) {
+    this.__secret = secret;
+    this.__crypto = cryptoEngine || crypto;
+  }
+
+  /**
+   * Signs a simple message. This function can only be invoked after the secret has been defined. The secret can be defined either in the construction method as in `new FoxySigner(mySecret)` or by invoking the setSecret method, as in `signer.setSecret(mySecret)`
+   *
+   * @param {string} message the message to be signed.
+   * @returns {Promise<string>} signed message.
+   * @private
+   */
+  async sign(message) {
+    if (this.__secret === undefined) {
+      throw new Error("No secret was provided to build the hmac");
+    }
+    const encodedMessage = new TextEncoder().encode(message);
+    const signature = await this.__crypto.subtle.sign("HMAC", await this.__getKey(), encodedMessage);
+    return btoa(String.fromCharCode(...Array.from(new Uint8Array(signature))));
+  }
+
+  async __getKey() {
+    return this.__crypto.subtle.importKey("raw",
+        new TextEncoder().encode(this.__secret),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["sign", "verify"]
+    );
+  }
+
+}
+
 /**
  * HMAC signing utility. Methods are named after what it is to be signed, to
  * allow for an easy to read code in the user application.
@@ -14,11 +49,13 @@ export class Signer {
    * Creates an instance of this class.
    *
    * @param {string} secret OAuth2 client secret for your integration.
-   * @param {Object} codes
+   * @param {Object} codes an object that contains the code and parent code for each of the products prefixes.
+   * @param {{sign: Function}} hmacEngine that is able to create Base64 encoded HMAC signatures of a string.
    */
-  constructor(secret, codes) {
-    this.__secret = secret
-    this.__codes = codes
+  constructor(secret, codes, hmacEngine) {
+    this.__secret = secret;
+    this.__codes = codes;
+    this.hmac = hmacEngine ? hmacEngine : new Hmac(secret);
   }
 
   /**
@@ -31,35 +68,39 @@ export class Signer {
   async signUrl(urlStr) {
     // Build a URL object
     if (Signer.__isSigned(urlStr)) {
-      console.error('Attempt to sign a signed URL', urlStr)
-      return urlStr
+      console.error("Attempt to sign a signed URL", urlStr);
+      return urlStr;
     }
     // Do not change invalid URLs
-    let url
-    let stripped
+    let url;
+    let stripped;
     try {
-      url = new URL(urlStr)
-      stripped = new URL(url.origin)
+      url = new URL(urlStr);
+      stripped = new URL(url.origin);
     } catch (e) {
       //console.assert(e.code === "ERR_INVALID_URL");
-      return urlStr
+      return urlStr;
     }
-    const originalParams = url.searchParams
-    const newParams = stripped.searchParams
-    const code = Signer.__getCodeFromURL(url)
+    const originalParams = url.searchParams;
+    const newParams = stripped.searchParams;
+    const code = Signer.__getCodeFromURL(url);
     // If there is no code, return the same URL
     if (!code) {
-      return urlStr
+      return urlStr;
     }
     // sign the url object
     for (const p of originalParams.entries()) {
-      const signed = (await this.__signQueryArg(decodeURIComponent(p[0]), decodeURIComponent(code), decodeURIComponent(p[1]))).split(
-        '=',
-      )
-      newParams.set(signed[0], signed[1])
+      const signed = (
+        await this.__signQueryArg(
+          decodeURIComponent(p[0]),
+          decodeURIComponent(code),
+          decodeURIComponent(p[1])
+        )
+      ).split("=");
+      newParams.set(signed[0], signed[1]);
     }
-    url.search = newParams.toString()
-    return Signer.__replaceUrlCharacters(url.toString())
+    url.search = newParams.toString();
+    return Signer.__replaceUrlCharacters(url.toString());
   }
 
   /**
@@ -71,11 +112,11 @@ export class Signer {
    * @param {string|number} value Input value.
    * @returns {Promise<string>} the signed input name.
    */
-  async signName(name, code, parentCode = '', value) {
-    name = name.replace(/ /g, '_')
-    const signature = await this.__signProduct(code + parentCode, name, value)
-    const encodedName = encodeURIComponent(name)
-    return Signer.__buildSignedName(encodedName, signature, value)
+  async signName(name, code, parentCode = "", value) {
+    name = name.replace(/ /g, "_");
+    const signature = await this.__signProduct(code + parentCode, name, value);
+    const encodedName = encodeURIComponent(name);
+    return Signer.__buildSignedName(encodedName, signature, value);
   }
 
   /**
@@ -85,12 +126,13 @@ export class Signer {
    * @param {string} code Product code.
    * @param {string} parentCode Parent product code.
    * @param {string|number} value Input value.
+   *
    * @returns {Promise<string>} the signed value.
    */
-  async signValue(name, code, parentCode = '', value) {
-    name = name.replace(/ /g, '_')
-    const signature = await this.__signProduct(code + parentCode, name, value)
-    return Signer.__buildSignedValue(signature, value)
+  async signValue(name, code, parentCode = "", value) {
+    name = name.replace(/ /g, "_");
+    const signature = await this.__signProduct(code + parentCode, name, value);
+    return Signer.__buildSignedValue(signature, value);
   }
 
   /**
@@ -103,8 +145,7 @@ export class Signer {
    * @private
    */
   async __signProduct(code, name, value) {
-    const key = await this.__getKey()
-    return await this.__message(code + name + Signer.__valueOrOpen(value), key)
+    return await this.hmac.sign(code + name + Signer.__valueOrOpen(value));
   }
 
   /**
@@ -117,12 +158,14 @@ export class Signer {
    * @private
    */
   async __signQueryArg(name, code, value) {
-    name = name.replace(/ /g, '_')
-    code = code.replace(/ /g, '_')
-    const signature = await this.__signProduct(code, name, value)
-    const encodedName = encodeURIComponent(name).replace(/%20/g, '+')
-    const encodedValue = encodeURIComponent(Signer.__valueOrOpen(value)).replace(/%20/g, '+')
-    return Signer.__buildSignedQueryArg(encodedName, signature, encodedValue)
+    name = name.replace(/ /g, "_");
+    code = code.replace(/ /g, "_");
+    const signature = await this.__signProduct(code, name, value);
+    const encodedName = encodeURIComponent(name).replace(/%20/g, "+");
+    const encodedValue = encodeURIComponent(
+      Signer.__valueOrOpen(value)
+    ).replace(/%20/g, "+");
+    return Signer.__buildSignedQueryArg(encodedName, signature, encodedValue);
   }
 
   /**
@@ -132,17 +175,17 @@ export class Signer {
    * @returns {Promise<HTMLInputElement>}the signed element
    */
   async signInput(el) {
-    const name = el.getAttribute('name')
-    if (!name) return el
-    const namePrefix = Signer.__splitNamePrefix(name)
-    const nameString = namePrefix[1]
-    const prefix = namePrefix[0]
-    const code = this.__codes[prefix].code
-    const parentCode = this.__codes[prefix].parent
-    const value = el.value
-    const signedName = await this.signName(nameString, code, parentCode, value)
-    el.setAttribute('name', prefix + ':' + signedName)
-    return el
+    const name = el.getAttribute("name");
+    if (!name) return el;
+    const namePrefix = Signer.__splitNamePrefix(name);
+    const nameString = namePrefix[1];
+    const prefix = namePrefix[0];
+    const code = this.__codes[prefix].code;
+    const parentCode = this.__codes[prefix].parent;
+    const value = el.value;
+    const signedName = await this.signName(nameString, code, parentCode, value);
+    el.setAttribute("name", prefix + ":" + signedName);
+    return el;
   }
 
   /**
@@ -152,15 +195,7 @@ export class Signer {
    * @returns {Promise<HTMLTextAreaElement>} the signed textarea element.
    */
   async signTextArea(el) {
-    const namePrefix = Signer.__splitNamePrefix(el.getAttribute('name'))
-    const nameString = namePrefix[1]
-    const prefix = namePrefix[0]
-    const code = this.__codes[prefix].code
-    const parentCode = this.__codes[prefix].parent
-    const value = ''
-    const signedName = await this.signName(nameString, code, parentCode, value)
-    el.setAttribute('name', prefix + ':' + signedName)
-    return el
+    return this.signInput(el);
   }
 
   /**
@@ -175,30 +210,35 @@ export class Signer {
     // Get the name parameter, either from the "select"
     // parent element of an option tag or from the name
     // attribute of the input element itself
-    let n = el.name
+    let n = el.name;
     if (n === undefined) {
-      const p = el.parentElement
-      n = p.name
+      const p = el.parentElement;
+      n = p.name;
     }
-    const namePrefix = Signer.__splitNamePrefix(n)
-    const nameString = namePrefix[1]
-    const prefix = namePrefix[0]
-    const code = this.__codes[prefix].code
-    const parentCode = this.__codes[prefix].parent
-    const value = el.value
-    const signedValue = await this.signValue(nameString, code, parentCode, value)
-    el.setAttribute('value', prefix + ':' + signedValue)
-    return el
+    const namePrefix = Signer.__splitNamePrefix(n);
+    const nameString = namePrefix[1];
+    const prefix = namePrefix[0];
+    const code = this.__codes[prefix].code;
+    const parentCode = this.__codes[prefix].parent;
+    const value = el.value;
+    const signedValue = await this.signValue(
+      nameString,
+      code,
+      parentCode,
+      value
+    );
+    el.setAttribute("value", prefix + ":" + signedValue);
+    return el;
   }
 
   /**
    * Signs a radio button. Radio buttons use the value attribute to hold their signatures.
    *
-   * @param {HTMLInputElement} el, the radio button element.
+   * @param {HTMLInputElement} el the radio button element.
    * @returns {Promise<HTMLInputElement>} the signed radio button.
    */
   signRadio(el) {
-    return this.signOption(el)
+    return this.signOption(el);
   }
 
   /**
@@ -210,11 +250,11 @@ export class Signer {
    * @private
    */
   static __splitNamePrefix(name) {
-    const namePrefix = name.split(':')
+    const namePrefix = name.split(":");
     if (namePrefix.length === 2) {
-      return [parseInt(namePrefix[0], 10), namePrefix[1]]
+      return [parseInt(namePrefix[0], 10), namePrefix[1]];
     }
-    return [0, name]
+    return [0, name];
   }
 
   /**
@@ -227,8 +267,8 @@ export class Signer {
    * @private
    */
   static __buildSignedName(name, signature, value) {
-    const open = Signer.__valueOrOpen(value) === '--OPEN--' ? '||open' : ''
-    return `${name}||${signature}${open}`
+    const open = Signer.__valueOrOpen(value) === "--OPEN--" ? "||open" : "";
+    return `${name}||${signature}${open}`;
   }
 
   /**
@@ -240,8 +280,8 @@ export class Signer {
    * @private
    */
   static __buildSignedValue(signature, value) {
-    const open = Signer.__valueOrOpen(value) === '--OPEN--' ? '||open' : value
-    return `${open}||${signature}`
+    const open = Signer.__valueOrOpen(value) === "--OPEN--" ? "||open" : value;
+    return `${open}||${signature}`;
   }
 
   /**
@@ -254,7 +294,7 @@ export class Signer {
    * @private
    */
   static __buildSignedQueryArg(name, signature, value) {
-    return `${name}||${signature}=${value}`
+    return `${name}||${signature}=${value}`;
   }
 
   /**
@@ -266,10 +306,10 @@ export class Signer {
    * @private
    */
   static __valueOrOpen(value) {
-    if (value === undefined || value === '') {
-      return '--OPEN--'
+    if (value === undefined || value === "") {
+      return "--OPEN--";
     }
-    return value
+    return value;
   }
 
   /**
@@ -284,7 +324,7 @@ export class Signer {
    * @private
    */
   static __isSigned(url) {
-    return url.match(/^.*\|\|[0-9a-fA-F]{64}/) != null
+    return url.match(/^.*\|\|[0-9a-fA-F]{64}/) != null;
   }
 
   /**
@@ -296,8 +336,8 @@ export class Signer {
    */
   static __getCodeFromURL(url) {
     for (const p of Array.from(url.searchParams)) {
-      if (p[0] === 'code') {
-        return p[1]
+      if (p[0] === "code") {
+        return p[1];
       }
     }
   }
@@ -310,33 +350,10 @@ export class Signer {
    * @private
    */
   static __replaceUrlCharacters(urlStr) {
-    return urlStr.replace(/%7C/g, '|').replace(/%3D/g, '=').replace(/%2B/g, '+')
+    return urlStr
+      .replace(/%7C/g, "|")
+      .replace(/%3D/g, "=")
+      .replace(/%2B/g, "+");
   }
 
-  /**
-   * Signs a simple message. This function can only be invoked after the secret has been defined. The secret can be defined either in the construction method as in `new FoxySigner(mySecret)` or by invoking the setSecret method, as in `signer.setSecret(mySecret)`
-   *
-   * @param {string} message the message to be signed.
-   * @param {CryptoKey} key to use to sign the message.
-   * @returns {Promise<string>} signed message.
-   * @private
-   */
-  async __message(message, key) {
-    if (this.__secret === undefined) {
-      throw new Error('No secret was provided to build the hmac')
-    }
-    const encodedMessage = new TextEncoder().encode(message)
-    const signature = await crypto.subtle.sign('HMAC', key, encodedMessage)
-    return btoa(String.fromCharCode(...Array.from(new Uint8Array(signature))))
-  }
-
-  async __getKey() {
-    return crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(this.__secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign', 'verify'],
-    )
-  }
 }

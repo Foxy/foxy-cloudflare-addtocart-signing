@@ -1,4 +1,8 @@
+import {Signer} from './Signer';
+
 export class LinkRewriter {
+
+  private signer: Signer;
 
   /**
    * @param {Signer} signer to be used to sign the URLs query params.
