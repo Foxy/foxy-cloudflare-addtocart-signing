@@ -1,12 +1,4 @@
 // global FX_CLIENT_SECRET
-/**
- type CodesDict = {
-  [key: number]: {
-    code: string;
-    parent: string;
-  };
-};
- **/
 
 import { CodeDictBuilder } from './src/CodeBuilder'
 import { FormRewriter } from './src/FormRewriter'
@@ -43,3 +35,4 @@ async function handleRequest(req) {
 addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request))
 })
+
