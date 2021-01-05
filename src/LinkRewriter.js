@@ -1,4 +1,4 @@
-import { Signer } from "./Signer";
+import { Signer } from "./Signer.js";
 
 export class LinkRewriter {
   /**

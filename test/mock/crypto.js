@@ -13,4 +13,9 @@ export class MockHmac {
     return this.willFail ? Promise.reject() : Promise.resolve("signed");
   }
 
+  signUrl() {
+    return this.sign();
+  }
+
+
 }
