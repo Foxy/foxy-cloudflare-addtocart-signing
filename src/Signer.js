@@ -179,7 +179,7 @@ export class Signer {
     const namePrefix = Signer.__splitNamePrefix(name);
     const nameString = namePrefix[1];
     const prefix = namePrefix[0];
-    const code = this.__codes[prefix]?.code;
+    const code = this.__codes[prefix] ? this.__codes[prefix].code : null;
     if (!code) {
       return el;
     }
@@ -220,7 +220,7 @@ export class Signer {
     const namePrefix = Signer.__splitNamePrefix(n);
     const nameString = namePrefix[1];
     const prefix = namePrefix[0];
-    const code = this.__codes[prefix]?.code;
+    const code = this.__codes[prefix] ? this.__codes[prefix].code : null;
     if (!code) {
       return el;
     }
