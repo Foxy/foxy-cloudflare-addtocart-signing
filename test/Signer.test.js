@@ -1,15 +1,36 @@
 import {before, describe, it} from 'mocha';
 import {JSDOM} from 'jsdom';
 import {MockHmac} from "./mock/crypto.js";
-import {Signer} from "../src/Signer.js";
+import {Signer, Hmac} from "../src/Signer.js";
 import pkg from 'chai';
+import chaiAsPromised from "chai-as-promised";
 
-const { expect } = pkg
+pkg.use(chaiAsPromised);
+const expect = pkg.expect;
+
+describe ("Mmac", () => {
+
+  it ('Cannot operate with an undefined secret', async () => {
+    const hmac = new Hmac(undefined, {});
+    expect(hmac.sign('message')).to.be.rejected;
+  });
+
+  it ("Signs a simple message", async () => {
+    const hmac = new Hmac('1', new MockHmac());
+    const message = "foo";
+    global.btoa = (s) => 'b64 ' + s;
+    const signed = await hmac.sign(message);
+    expect(signed).to.equal('b64 signed');
+  });
+
+});
 
 describe("Signer", () => {
   const signer = new Signer("1", { 0: {code: "1234"}, 1: {code: "5678"}, 2: {code: "9012"}}, new MockHmac());
 
   describe("Signs basic items", async () => {
+
+
     it ("Signs an input name", async () => {
       expect(await signer.signName("name", "1234", "", "foo")).to.equal("name||signed");
     });
@@ -33,6 +54,21 @@ describe("Signer", () => {
         "other_atribute||signed=Some+Other+Thing";
       expect(await signer.signUrl(fullURL)).to.equal(signedURL);
     });
+
+    it("Does not a codeless URL", async () => {
+      const badURL = 'http://example.com?name=foo&price=10';
+      expect(await signer.signUrl(badURL)).to.equal(badURL);
+    });
+
+    it("Does not change malformed URLs", async () => {
+      const badURL = 'foo?bar';
+      expect(await signer.signUrl(badURL)).to.equal(badURL);
+    });
+
+    it("Does not change an already signed URL", async () => {
+      const signedURL = 'http://example.com?name||aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+      expect(await signer.signUrl(signedURL)).to.equal(signedURL);
+    });
   });
 
   describe("Signs relevant HTML elements", async () => {
@@ -48,6 +84,13 @@ describe("Signer", () => {
       expect(inputEl.getAttribute('name')).to.equal('0:name||signed');
     });
 
+    it( "Signs an HTML input radio element", async () => {
+      const inputEl = pageWithForm.window.document.querySelector('input[type=radio]');
+      await signer.signRadio(inputEl);
+      expect(inputEl.getAttribute('name')).to.equal('shipment');
+      expect(inputEl.getAttribute('value')).to.equal('0:express||signed');
+    });
+
     it( "Signs an open HTML input element", async () => {
       const inputEl = pageWithForm.window.document.querySelector('input[name=quantity]');
       await signer.signInput(inputEl);
@@ -56,7 +99,7 @@ describe("Signer", () => {
 
     it( "Signs an open HTML textarea element", async () => {
       const inputEl = pageWithForm.window.document.querySelector('textarea[name=additional-details]');
-      await signer.signInput(inputEl);
+      await signer.signTextArea(inputEl);
       expect(inputEl.getAttribute('name')).to.equal('0:additional-details||signed||open');
     });
 

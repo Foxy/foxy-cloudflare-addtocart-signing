@@ -1,5 +1,5 @@
 
-class Hmac {
+export class Hmac {
 
   constructor(secret, cryptoEngine = null) {
     this.__secret = secret;
@@ -11,7 +11,6 @@ class Hmac {
    *
    * @param {string} message the message to be signed.
    * @returns {Promise<string>} signed message.
-   * @private
    */
   async sign(message) {
     if (this.__secret === undefined) {

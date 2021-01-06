@@ -7,8 +7,7 @@ export class FormRewriter {
   }
 
   async element(el) {
-    if (!Object.entries(this.signer.__codes).length) return;
-    switch (el.tagName) {
+    switch (el.tagName.toLowerCase()) {
       case "input":
         if (el.getAttribute("type") === "radio")
           await this.signer.signRadio(el);

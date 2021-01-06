@@ -16,7 +16,7 @@ describe('Signs an HTML Anchor element', () => {
     ];
     for (let i of shouldSign) {
       const dom = new JSDOM(i);
-      const rewriter = new LinkRewriter(new MockHmac());
+      const rewriter = new LinkRewriter(new MockHmac(1, {}));
       const a = dom.window.document.querySelector('a');
       await rewriter.element(a);
       expect(a.getAttribute('href')).to.equal('signed');
@@ -25,7 +25,7 @@ describe('Signs an HTML Anchor element', () => {
 
   it ('Does not change any other attribute', async () => {
     const dom = new JSDOM(`<a custom-attribute="foo" title="foo" href="http://example.com" style="color: 'blue'">Foo Bar</a>`);
-    const rewriter = new LinkRewriter(new MockHmac());
+    const rewriter = new LinkRewriter(new MockHmac('1', {} ));
     const a = dom.window.document.querySelector('a');
     await rewriter.element(a);
     expect(a.getAttribute('custom-attribute')).to.equal('foo');
