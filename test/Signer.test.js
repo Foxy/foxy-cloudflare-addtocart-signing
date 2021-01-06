@@ -109,6 +109,48 @@ describe("Signer", () => {
       expect(optionEl.getAttribute('value')).to.equal('0:small{p-2}||signed');
     });
 
+    describe("Leave inputs untouched if there is no code available for them", () => {
+      const signer = new Signer("1", {}, new MockHmac());
+      let pageWithForm;
+
+      before(() => {
+        pageWithForm = new JSDOM(htmlPageWithForm);
+      });
+
+      it( "Leaves an HTML input element", async () => {
+        const inputEl = pageWithForm.window.document.querySelector('input[name=name]');
+        await signer.signInput(inputEl);
+        expect(inputEl.getAttribute('name')).to.equal('name');
+      });
+
+      it( "Leaves an HTML input radio element", async () => {
+        const inputEl = pageWithForm.window.document.querySelector('input[type=radio]');
+        await signer.signRadio(inputEl);
+        expect(inputEl.getAttribute('name')).to.equal('shipment');
+        expect(inputEl.getAttribute('value')).to.equal('express');
+      });
+
+      it( "Leaves an open HTML input element", async () => {
+        const inputEl = pageWithForm.window.document.querySelector('input[name=quantity]');
+        await signer.signInput(inputEl);
+        expect(inputEl.getAttribute('name')).to.equal('quantity');
+      });
+
+      it( "Leaves an open HTML textarea element", async () => {
+        const inputEl = pageWithForm.window.document.querySelector('textarea[name=additional-details]');
+        await signer.signTextArea(inputEl);
+        expect(inputEl.getAttribute('name')).to.equal('additional-details');
+      });
+
+      it("Leaves an option element", async () => {
+        const optionEl = pageWithForm.window.document.querySelector('option[value=small\\{p-2\\}]');
+        await signer.signOption(optionEl);
+        expect(optionEl.getAttribute('value')).to.equal('small{p-2}');
+      });
+
+
+    });
+
   });
 });
 
