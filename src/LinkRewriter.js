@@ -1,5 +1,3 @@
-import { Signer } from "./Signer.js";
-
 export class LinkRewriter {
   /**
    * @param {Signer} signer to be used to sign the URLs query params.

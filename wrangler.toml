@@ -4,3 +4,4 @@ account_id = "CF_ACCOUNT_ID"
 workers_dev = true
 route = ""
 zone_id = ""
+webpack_config = "webpack.config.js"

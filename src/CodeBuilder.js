@@ -5,8 +5,10 @@
  * This object can be used to find the parent code of a code without the need to search for the parent code element.
  */
 export class CodeDictBuilder {
-  constructor(codesDict) {
+  constructor(codesDict, queue, queue_action) {
     this.codes = codesDict ? codesDict: {};
+    this.queue = queue ? queue: {};
+    this.action = queue_action;
   }
 
   element(el) {
@@ -14,17 +16,17 @@ export class CodeDictBuilder {
     const codeValue = el.getAttribute("value");
     if (nameAttr && nameAttr.match(/^([0-9]{1,3}:)?(parent_)?code/i) && codeValue) {
       const namePrefix = nameAttr.split(":");
-      const prefix = namePrefix[0];
+      let prefix;
+      let name;
       if (namePrefix.length === 2) {
-        const codeType = namePrefix[1].toLowerCase(); // parent_code or code
-        // Store prefix in codes list
-        if (!this.codes[prefix]) this.codes[prefix] = {};
-        this.codes[prefix][codeType] = codeValue;
+        prefix = namePrefix[0];
+        name = namePrefix[1].toLowerCase();
       } else {
-        if (!this.codes[0]) this.codes[0] = {};
-        // Allow to push a single code without prefix
-        this.codes[0][nameAttr.toLowerCase()] = codeValue;
+        prefix = 0;
+        name = namePrefix[0].toLowerCase();
       }
+      if (!this.codes[prefix]) this.codes[prefix] = {};
+      this.codes[prefix][name] = codeValue;
     }
   }
 }

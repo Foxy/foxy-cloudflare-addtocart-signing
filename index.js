@@ -1,10 +1,8 @@
 // global FX_CLIENT_SECRET
 
-import { CodeDictBuilder } from './src/CodeBuilder'
 import { FormRewriter } from './src/FormRewriter'
 import { LinkRewriter } from './src/LinkRewriter'
-import { Signer } from './src/Signer'
-
+import { Signer } from './src/CartValidation/cart-validation.ts'
 
 /**
  * Handles the request
@@ -15,19 +13,14 @@ import { Signer } from './src/Signer'
 async function handleRequest(req) {
   if (!FX_CLIENT_SECRET) return fetch(req);
   const secret = FX_CLIENT_SECRET;
-  const codes = {};
-  const codeBuilder = new CodeDictBuilder(codes);
-  const signer = new Signer(secret, codes);
+  const signer = new Signer(secret);
   const formRewriter = new FormRewriter(signer);
   const linkRewriter = new LinkRewriter(signer);
 
   // Fill the codes object
   const rewriter = new HTMLRewriter()
-    .on('form[action$="foxycart.com/cart"] [name$=code]', codeBuilder)
-    .on('form[action$="foxycart.com/cart"] input', formRewriter)
-    .on('form[action$="foxycart.com/cart"] select', formRewriter)
-    .on('form[action$="foxycart.com/cart"] textarea', formRewriter)
-    .on('a[href*="foxycart.com/cart"]', linkRewriter);
+    .on('form[action$="/cart"]', formRewriter)
+    .on('a[href*="/cart"]', linkRewriter);
   const res = await fetch(req);
   return rewriter.transform(res);
 }

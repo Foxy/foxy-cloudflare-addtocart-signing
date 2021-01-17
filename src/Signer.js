@@ -51,7 +51,7 @@ export class Signer {
    * @param {Object} codes an object that contains the code and parent code for each of the products prefixes.
    * @param {{sign: Function}} hmacEngine that is able to create Base64 encoded HMAC signatures of a string.
    */
-  constructor(secret, codes, hmacEngine) {
+  constructor(secret, codes, hmacEngine =null) {
     this.__secret = secret;
     this.__codes = codes;
     this.hmac = hmacEngine ? hmacEngine : new Hmac(secret);
