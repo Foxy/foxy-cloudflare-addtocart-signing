@@ -61,7 +61,7 @@ function strPos(haystack: string, needle: string, offset: number = 0): number|fa
  *   - Cannot use double-pipes in an input's name
  *   - Empty textareas are assumed to be "open"
  */
-export class FoxyCart_Helper {
+export class Signer {
 
   hmac: HMACInterface | undefined;
 
@@ -189,14 +189,23 @@ export class FoxyCart_Helper {
     'h:', 'x:', '__', 'utm_'
   ];
 
+  public async signUrl(url: string): Promise<string> {
+    const pattern = '(?<protocol>https?:\/\/)(?<domain>[^?\/]*)' + this.cartPath + '(\.php)?\\?(?<querystring>.*)';
+    const match = url.match(pattern);
+    if (!match || !match.groups) {
+      return url;
+    } else {
+      return `${match.groups.protocol}${match.groups.domain}${this.cartPath}${await this.signQueryString(match.groups.querystring)}`;
+    }
+  }
+
   /**
    * "Link Method": Generate HMAC SHA256 for GET Query Strings
    *
    * Notes: Can't parse_str because PHP doesn't support non-alphanumeric characters as array keys.
    * @return string
    **/
-  public async fc_hash_querystring(qs: string) {
-    this.log.push('<strong>Signing link</strong> with data: ' + htmlSpecialChars(qs.substr(0, 1500)) + '...' );
+  public async signQueryString(qs: string) {
     const fail = this.cartPath + '?' + qs;
     // If the link appears to be hashed already, don't bother
     if (strPos(qs, '||')) {
@@ -215,10 +224,10 @@ export class FoxyCart_Helper {
     for (let pair of pairs) {
       // Skip the cart excludes
       let include_pair = true;
-      if (pair['name'] in FoxyCart_Helper.cart_excludes) {
+      if (pair['name'] in Signer.cart_excludes) {
         include_pair = false;
       }
-      for (let exclude_prefix of FoxyCart_Helper.cart_excludes_prefixes) {
+      for (let exclude_prefix of Signer.cart_excludes_prefixes) {
         if ((pair['prefix'] + pair['name']).toLowerCase().substr(0, exclude_prefix.length) == exclude_prefix) {
           include_pair = false;
         }
@@ -228,7 +237,7 @@ export class FoxyCart_Helper {
         continue;
       }
       // Continue to sign the value and replace the name=value in the querystring with name=value||hash
-      const value = await this.fc_hash_value(codes[pair['prefix']], decodeURI(pair['name']), decodeURI(pair['value']), 'value', true);
+      const value = await this.signName(codes[pair['prefix']], decodeURI(pair['name']), decodeURI(pair['value']), 'value', true);
       let replacement: string;
       if (decodeURI(pair['value']) == '--OPEN--') {
         replacement = pair['amp']+ value + '=';
@@ -248,7 +257,7 @@ export class FoxyCart_Helper {
    *
    * @return string
    **/
-  public async fc_hash_value(product_code: string, option_name: string, option_value = '', method = 'name', urlEncode = false) {
+  public async signName(product_code: string, option_name: string, option_value = '', method = 'name', urlEncode = false) {
     if (!product_code || !option_name) {
       return false;
     }
@@ -271,8 +280,8 @@ export class FoxyCart_Helper {
 
   private __shouldSkipInput(name: string): boolean {
     return (
-        name in FoxyCart_Helper.cart_excludes ||
-        FoxyCart_Helper.cart_excludes_prefixes.some(p => name.toLowerCase().startsWith(p))
+        name in Signer.cart_excludes ||
+        Signer.cart_excludes_prefixes.some(p => name.toLowerCase().startsWith(p))
     );
   }
 
