@@ -10,12 +10,13 @@
     "test:manual": "wrangler preview -c dev.wrangler.toml",
     "format": "prettier --write '**/*.{js,css,json,md}'"
   },
-  "type": "module",
   "author": "Foxy.io",
   "license": "MIT",
   "devDependencies": {
     "@cloudflare/workers-types": "^2.1.0",
     "@foxy.io/eslint-config": "^1.0.0",
+    "@types/chai": "^4.2.14",
+    "@types/mocha": "^8.2.0",
     "c8": "^7.3.5",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
@@ -25,6 +26,8 @@
     "mocha": "^8.2.1",
     "prettier": "^2.1.2",
     "source-map-support": "^0.5.19",
+    "ts-loader": "^8.0.14",
+    "typescript": "^4.1.3",
     "webpack": "^5.11.1"
   },
   "config": {
