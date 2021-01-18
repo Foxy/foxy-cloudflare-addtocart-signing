@@ -48,7 +48,7 @@ function strPos(haystack: string, needle: string, offset: number = 0): number|fa
 }
 
 /**
- * FoxyCart_Helper
+ * Signer
  *
  * @author FoxyCart.com
  * @copyright FoxyCart.com LLC, 2011
@@ -197,7 +197,8 @@ export class Signer {
    * @return string
    **/
   public async signQueryString(qs: string) {
-    const fail = this.cartPath + '?' + qs;
+    qs = qs.replace(/^\?/, '');
+    const fail = '?' + qs;
     // If the link appears to be hashed already, don't bother
     if (strPos(qs, '||')) {
       return fail;
@@ -224,14 +225,13 @@ export class Signer {
         }
       }
       if (!include_pair) {
-        this.log.push('<strong style="color:purple;">Skipping</strong> the reserved parameter or prefix "' + pair['prefix'] + pair['name'] + '" = ' + pair['value']);
         continue;
       }
       // Continue to sign the value and replace the name=value in the querystring with name=value||hash
       const value = await this.signName(codes[pair['prefix']], decodeURI(pair['name']), decodeURI(pair['value']), 'value', true);
       let replacement: string;
       if (decodeURI(pair['value']) == '--OPEN--') {
-        replacement = pair['amp']+ value + '=';
+        replacement = pair['amp'] + value + '=';
       } else {
         replacement = pair['amp'] + pair['prefix'] + encodeURI(pair['name']) + '=' + value;
       }
@@ -239,7 +239,7 @@ export class Signer {
       this.log.push('Signed <strong>' + pair['name'] + '</strong> = <strong>' + pair['value'] + '</strong> with ' + replacement + '.<br />Replacing: ' + pair[0] + '<br />With... ' + replacement);
     }
     qs = qs.replace(/^&/, ''); // Get rid of that leading ampersand we added earlier
-    return this.cartPath + '?' + qs;
+    return '?' + qs;
   }
 
 
@@ -405,11 +405,9 @@ export class Signer {
     // Find and sign all the links
     const queryStrings = this.__getQueryStrings(html);
     for (let queryString of queryStrings) {
-      html = html.replace(new RegExp('href=[\'"]'+
-        queryString.domain + this.cartPath + '(\.php)?\?' +
-        queryString.query, 'i'),
-        `href="${queryString.domain}${this.cartPath}${await this.signQueryString(queryString.query)}`
-      );
+      const regex = new RegExp(`href=['"]${queryString.domain}${this.cartPath}(\.php)?.${queryString.query.replace(/^\?/, '')}['"]`);
+      const signed = await this.signUrl(queryString.matched.replace(/href=['"]/, '').replace(/['"]$/,  ''));
+      html = html.replace(regex, `href="${signed}"`);
     }
     // Find and sign all form values
     const forms = this.__getForms(html);

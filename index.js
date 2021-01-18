@@ -1,8 +1,7 @@
 // global FX_CLIENT_SECRET
 
-import { FormRewriter } from './src/FormRewriter'
-import { LinkRewriter } from './src/LinkRewriter'
 import { Signer } from './src/CartValidation/cart-validation.ts'
+import { Hmac } from './src/Signer'
 
 /**
  * Handles the request
@@ -13,16 +12,10 @@ import { Signer } from './src/CartValidation/cart-validation.ts'
 async function handleRequest(req) {
   if (!FX_CLIENT_SECRET) return fetch(req);
   const secret = FX_CLIENT_SECRET;
-  const signer = new Signer(secret);
-  const formRewriter = new FormRewriter(signer);
-  const linkRewriter = new LinkRewriter(signer);
-
-  // Fill the codes object
-  const rewriter = new HTMLRewriter()
-    .on('form[action$="/cart"]', formRewriter)
-    .on('a[href*="/cart"]', linkRewriter);
+  const signer = new Signer(new Hmac(secret));
   const res = await fetch(req);
-  return rewriter.transform(res);
+  const responseBody = await signer.signHtml(await res.text());
+  return new Response(responseBody, res);
 }
 
 addEventListener('fetch', event => {
