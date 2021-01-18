@@ -181,6 +181,9 @@ export class Signer {
   ];
 
   public async signUrl(url: string): Promise<string> {
+    if (strPos(url, '||')) {
+      return url;
+    }
     const pattern = '(?<protocol>https?:\/\/)(?<domain>[^?\/]*)' + this.cartPath + '(\.php)?\\?(?<querystring>.*)';
     const match = url.match(pattern);
     if (!match || !match.groups) {
@@ -406,8 +409,11 @@ export class Signer {
     const queryStrings = this.__getQueryStrings(html);
     for (let queryString of queryStrings) {
       const regex = new RegExp(`href=['"]${queryString.domain}${this.cartPath}(\.php)?.${queryString.query.replace(/^\?/, '')}['"]`);
-      const signed = await this.signUrl(queryString.matched.replace(/href=['"]/, '').replace(/['"]$/,  ''));
-      html = html.replace(regex, `href="${signed}"`);
+      const url = queryString.matched.replace(/href=['"]/, '').replace(/['"]$/,  '');
+      const signed = await this.signUrl(url);
+      if (signed != url) {
+        html = html.replace(regex, `href="${signed}"`);
+      }
     }
     // Find and sign all form values
     const forms = this.__getForms(html);
