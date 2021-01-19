@@ -1,6 +1,6 @@
 /* eslint-disable no-useless-escape */
-import { Signer } from "../../src/cart-validation";
-import { MockHmac } from "./crypto";
+import { Signer } from "../src/cart-validation";
+import { MockHmac } from "./mock/crypto";
 import { expect } from "chai";
 
 describe("Signer", () => {
