@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "build": "webpack",
-    "test": "c8 mocha",
+    "test": "c8 mocha -r ts-node/register \"test/**/*.test.{ts,js}\"",
     "test:manual": "wrangler preview -c dev.wrangler.toml",
     "format": "prettier --write '**/*.{js,ts,css,json,md}'"
   },
@@ -28,6 +28,7 @@
     "prettier": "^2.1.2",
     "source-map-support": "^0.5.19",
     "ts-loader": "^8.0.14",
+    "ts-node": "^9.1.1",
     "typescript": "^4.1.3",
     "webpack": "^5.11.1"
   },
