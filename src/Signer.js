@@ -59,7 +59,7 @@ export class Signer {
 
   /**
    * Signs a query string.
-   * All query fields withing the query string will be signed, provided it is a proper URL and there is a code field
+   * All query fields within the query string will be signed, provided it is a proper URL and there is a code field
    *
    * @param {string} urlStr Full URL including the query string that needs to be signed.
    * @returns {Promise<string>} the signed query string.

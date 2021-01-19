@@ -31,20 +31,9 @@ function matchGroups(str: string, regexp: RegExp): Record<string, string>[] {
   return found;
 }
 
-function htmlSpecialChars(html: string): string {
-  const mapDict: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
-  };
-  return html.replace(/[&<>"']/g, (m: string) => mapDict[m]);
-}
-
 function strContains(haystack: string, needle: string, offset: number = 0): boolean {
   const i = (haystack + '').indexOf(needle, (offset || 0));
-  return i === -1 ? false : true;
+  return i !== -1;
 }
 
 /**
@@ -67,6 +56,11 @@ export class Signer {
 
   protected log: string[] = [];
 
+  /**
+   * Constructs a Signer object.
+   *
+   * @param hmacEngine an HMAC signing class. It needs to have a sign method that returns a Promise to HMAC signature of a given message.
+   */
   constructor (hmacEngine: HMACInterface) {
     this.hmac = hmacEngine;
   }
@@ -76,7 +70,7 @@ export class Signer {
   }
 
 
-  private __getCodesFromPairs(pairs: Record<string,string>[]): Record<string, string> {
+  private static __getCodesFromPairs(pairs: Record<string,string>[]): Record<string, string> {
     // Get all the "code" values, set the matches in codes
     const codes: Record<string, string> = {};
     for (let pair of pairs) {
@@ -93,11 +87,11 @@ export class Signer {
     return codes;
   }
 
-  private __getParentCodeFromInputs(inputs: string[]) {
+  private static __getParentCodeFromInputs(inputs: string[]) {
     // get parent codes if they exist and append them to our code
     for (let item of inputs) {
       if (strContains(item, 'parent_code')) {
-        const match = item.match(/value=([\'"])(.*?)[\'"]/i);
+        const match = item.match(/value=(['"])(.*?)['"]/i);
         if (match) {
           return match[2];
         }
@@ -114,8 +108,7 @@ export class Signer {
 
   public __getQueryStrings(html: string): Record<string,string>[] {
     let pattern = new RegExp('<a .*?href=[\'"](?<domain>[^\'"]*?)' + this.cartPath + '(\.php)?\?(?<query>.*?)[\'"][^>]*?>', 'gi');
-    const matches = matchGroups(html, pattern);
-    return matches;
+    return matchGroups(html, pattern);
   }
 
   private __getFormCodes(form: string): Product[]{
@@ -127,7 +120,7 @@ export class Signer {
       if (group.prefix === undefined) {
         group.prefix = '0:';
       }
-      group.parentCode = this.__getParentCodeFromInputs(
+      group.parentCode = Signer.__getParentCodeFromInputs(
           this.__getInputsWithPrefix(form, group.prefix)
       );
     }
@@ -136,7 +129,7 @@ export class Signer {
 
   private __getInputsWithPrefix(form: string, prefix: string) {
     prefix = this.__prefixRegex(prefix);
-    let pattern = new RegExp('<input [^>]*?name=([\'"])' + prefix + '(?![0-9]{1,3})(?:.+?)[\'"][^>]*?>', 'ig');
+    let pattern = new RegExp('<input [^>]*?name=([\'"])' + this.__prefixRegex(prefix) + '(?![0-9]{1,3})(?:.+?)[\'"][^>]*?>', 'ig');
     let match = form.match(pattern);
     return match ? match : [];
   }
@@ -203,7 +196,7 @@ export class Signer {
     // Get all the prefixes, codes, and name=value pairs
     const pairs = matchGroups(qs, /(?<amp>&(?:amp;)?)(?<prefix>[a-z0-9]{1,3}:)?(?<name>[^=]+)=(?<value>[^&]+)/g);
     // Get all the "code" values, set the matches in codes
-    const codes = this.__getCodesFromPairs(pairs);
+    const codes = Signer.__getCodesFromPairs(pairs);
     if ( ! Object.keys(codes).length) {
       return fail;
     }
@@ -271,6 +264,67 @@ export class Signer {
     );
   }
 
+  private async __signInputs(html: string, code: Product) {
+    const inputs = this.__getInputsWithPrefix(html, code.prefix);
+    for (let input of inputs) {
+      const signed = await this.__getSignedInput(input, code);
+      html = html.replace(input, signed);
+    }
+    return html;
+  }
+
+
+  /**
+   *
+   * @param html string containing a form with option elements
+   * @param code a Product that will have its options signed
+   * @returns html a modified HTML snippet with the option fields signed
+   * @private
+   */
+  private async __signOptions(html: string, code: Product): Promise<string> {
+    let pattern = new RegExp('<select [^>]*name=[\'"]' + this.__prefixRegex(code.prefix) + '(?![0-9]{1,3})(?<name>.+?)[\'"][^>]*>(?<children>.+?)</select>', 'isg');
+    let options = matchGroups(html, pattern);
+    let form_part_signed = '';
+    for (let option of options) {
+      // Skip the cart excludes
+      if (this.__shouldSkipInput(code.prefix + option.name)) {
+        continue;
+      }
+      let options = matchGroups(option.children, /<option [^>]*value=(?<quote>['"])(?<value>.*?)['"][^>]*>(?:.*?)<\/option>/g);
+      for (let option of options) {
+        if (!option.value) {
+          continue
+        }
+        if (!form_part_signed) {
+          form_part_signed = option.matched;
+        }
+        const option_signed = option.matched.replace(
+          option.quote + option.value + option.quote,
+          option.quote + await this.signName(code.code + code.parentCode, option.name, option.value, 'value', false) + option.quote
+        );
+        form_part_signed = form_part_signed.replace(option.matched, option_signed);
+      }
+      html = html.replace(option.matched, form_part_signed);
+    }
+    return html;
+  }
+
+  private async __signTextAreas(html: string, code: Product): Promise<string> {
+    let pattern = new RegExp('<textarea [^>]*name=[\'"]' + code.prefix + '(?![0-9]{1,3})(?<name>)(.+?)[\'"][^>]*>(?<value>.*?)</textarea>', 'isg');
+    for (let textarea of matchGroups(html, pattern)) {
+      // Skip the cart excludes
+      if (this.__shouldSkipInput(code.prefix + textarea.name)) {
+        continue;
+      }
+      // Tackle implied "--OPEN--" first, if textarea is empty
+      textarea.value = (textarea.value == '') ? '--OPEN--' : textarea.value;
+      pattern = new RegExp('name=([\'"])' + code.prefix + textarea.name + '[\'"]');
+      const textarea_signed = textarea[0].replace(pattern, "name=$1" + await this.signName(code.code + code.parentCode, textarea.name, textarea.value, 'name', false) + "$1");
+      html = html.replace(textarea[0], textarea_signed);
+    }
+    return html;
+  }
+
   private async __getSignedInput(input: string, code: Product): Promise<string> {
     // Test to make sure both name and value attributes are found
     let pattern;
@@ -282,9 +336,9 @@ export class Signer {
     match = input.match(pattern);
     const name = match ? match.groups!.name : '';
     if (match) {
-      match = input.match(/value=[\'"](.*?)[\'"]/);
+      match = input.match(/value=['"](.*?)['"]/);
       let value = match ? match : ['', '', ''];
-      match = input.match(/type=[\'"](.*?)[\'"]/);
+      match = input.match(/type=['"](.*?)['"]/);
       let type = match ? match : ['', '', ''];
       // Skip the cart excludes
       if (this.__shouldSkipInput(prefix + name)) {
@@ -302,6 +356,15 @@ export class Signer {
     return input_signed;
   }
 
+  /**
+   * Signs an entire HTML snippet form string.
+   * All input and option fields within the form will be signed and the resulting HTML string is returned.
+   *
+   * It assumes the string contains only a single form.
+   *
+   * @param html the HTML string containing the form to be signed
+   * @returns a Promise of a signed HTML snippet string containing the form
+   */
   public async signForm(html: string): Promise<string> {
     // Store the original form so we can replace it when we're done
     const form_original = html;
@@ -317,72 +380,17 @@ export class Signer {
       // If the form appears to be hashed already, don't bother
       // If the code is empty, skip this form or specific prefixed elements
       if (!code.code || strContains(code.matched, '||')) {
-        return form_original;
+        continue;
       }
       // Sign all <input /> elements with matching prefix
-      pattern = new RegExp('<input [^>]*?name=([\'"])' + this.__prefixRegex(code.prefix) + '(?![0-9]{1,3})(?:.+?)[\'"][^>]*>', 'ig');
-      match = html.match(pattern);
-      const inputs = this.__getInputsWithPrefix(html, code.prefix);
-      // get parent codes if they exist and append them to our code
-      let matchedCode = code.code + code.parentCode;
-      for (let input of inputs) {
-        const signed = await this.__getSignedInput(input, code);
-        html = html.replace(input, signed);
-      }
+      html = await this.__signInputs(html, code);
       // Sign all <option /> elements
-      pattern = new RegExp('<select [^>]*name=[\'"]' + this.__prefixRegex(code.prefix) + '(?![0-9]{1,3})(?<name>.+?)[\'"][^>]*>(?<children>.+?)</select>', 'isg');
-      let lists = matchGroups(html, pattern);
-      let form_part_signed = '';
-      for (let list of lists) {
-        // Skip the cart excludes
-        if (this.__shouldSkipInput(code.prefix + list.name)) {
-          return form_original;
-        }
-        let options = matchGroups(list.children, /<option [^>]*value=(?<quote>[\'"])(?<value>.*?)[\'"][^>]*>(?:.*?)<\/option>/g);
-        for (let option of options) {
-          if (!option.value) {
-            return form_original;
-          }
-          if (!form_part_signed) {
-            form_part_signed = list.matched;
-          }
-          const option_signed = option.matched.replace(
-            option.quote + option.value + option.quote,
-            option.quote + await this.signName(matchedCode, list.name, option.value, 'value', false) + option.quote
-          );
-          form_part_signed = form_part_signed.replace(option.matched, option_signed);
-        }
-        html = html.replace(list.matched, form_part_signed);
-      }
+      html = await this.__signOptions(html, code);
       // Sign all <textarea /> elements
-      pattern = new RegExp('%<textarea [^>]*name=[\'"]' + code.prefix + '(?![0-9]{1,3})(?<name>)(.+?)[\'"][^>]*>(?<value>.*?)</textarea>', 'isg');
-      let textareas = matchGroups(html, pattern);
-      textareas = textareas ? textareas : [];
-      // echo "\n\nTextareas: ".print_r($textareas, true);
-      for (let textarea of textareas) {
-        // Skip the cart excludes
-        let include_input = true;
-        if ((code.prefix + textarea.name) in Signer.cart_excludes) {
-          include_input = false;
-        }
-        for (let exclude_prefix of Signer.cart_excludes_prefixes) {
-          if ((code.prefix + textarea.name).toLowerCase().startsWith(exclude_prefix)) {
-            include_input = false;
-          }
-        }
-        if (!include_input) {
-          this.log.push('<strong style="color:purple;">Skipping</strong> the reserved parameter or prefix "' + code.prefix + textarea.name);
-          return form_original;
-        }
-        // Tackle implied "--OPEN--" first, if textarea is empty
-        textarea.value = (textarea.value == '') ? '--OPEN--' : textarea.value;
-        pattern = new RegExp('name=([\'"])' + code.prefix + textarea.name + '[\'"]');
-        const textarea_signed = textarea[0].replace(pattern, "name=$1" + await this.signName(matchedCode, textarea.name, textarea.value, 'name', false) + "$1");
-        html = html.replace(textarea[0], textarea_signed);
-      }
-      // Exclude all <button> elements
-      html = html.replace(/<button ([^>]*)name=(['"])(.*?)['"]([^>]*>.*?<\/button>)/i, "<button $1name=$2x:$3$4");
+      html = await this.__signTextAreas(html, code);
     }
+    // Exclude all <button> elements
+    html = html.replace(/<button ([^>]*)name=(['"])(.*?)['"]([^>]*>.*?<\/button>)/i, "<button $1name=$2x:$3$4");
     // Replace the entire form
     return html.replace(form_original, html);
   }
