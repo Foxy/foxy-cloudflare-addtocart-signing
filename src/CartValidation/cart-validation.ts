@@ -42,9 +42,9 @@ function htmlSpecialChars(html: string): string {
   return html.replace(/[&<>"']/g, (m: string) => mapDict[m]);
 }
 
-function strPos(haystack: string, needle: string, offset: number = 0): number|false {
+function strContains(haystack: string, needle: string, offset: number = 0): boolean {
   const i = (haystack + '').indexOf(needle, (offset || 0));
-  return i === -1 ? false : i;
+  return i === -1 ? false : true;
 }
 
 /**
@@ -96,7 +96,7 @@ export class Signer {
   private __getParentCodeFromInputs(inputs: string[]) {
     // get parent codes if they exist and append them to our code
     for (let item of inputs) {
-      if (strPos(item, 'parent_code') !== false) {
+      if (strContains(item, 'parent_code')) {
         const match = item.match(/value=([\'"])(.*?)[\'"]/i);
         if (match) {
           return match[2];
@@ -107,13 +107,13 @@ export class Signer {
   }
 
   private __getForms(html: string): string[] {
-    const pattern = new RegExp('<form [^>]*?action=[\'"][^\"]*' + this.cartPath + '(?:\.php)?[\'"].*?>.+?</form>', 'isg');
+    const pattern = new RegExp('<form [^>]*?action=[\'"][^\"]*?' + this.cartPath + '(?:\.php)?[\'"].*?>.+?</form>', 'isg');
     const forms = html.match(pattern);
     return forms ? forms : [];
   }
 
   public __getQueryStrings(html: string): Record<string,string>[] {
-    let pattern = new RegExp('<a .*href=[\'"](?<domain>[^\'"]*)' + this.cartPath + '(\.php)?\?(?<query>.*)[\'"].*?>', 'gi');
+    let pattern = new RegExp('<a .*?href=[\'"](?<domain>[^\'"]*?)' + this.cartPath + '(\.php)?\?(?<query>.*?)[\'"][^>]*?>', 'gi');
     const matches = matchGroups(html, pattern);
     return matches;
   }
@@ -136,7 +136,7 @@ export class Signer {
 
   private __getInputsWithPrefix(form: string, prefix: string) {
     prefix = this.__prefixRegex(prefix);
-    let pattern = new RegExp('<input [^>]*?name=([\'"])' + prefix + '(?![0-9]{1,3})(?:.+?)[\'"][^>]*>', 'ig');
+    let pattern = new RegExp('<input [^>]*?name=([\'"])' + prefix + '(?![0-9]{1,3})(?:.+?)[\'"][^>]*?>', 'ig');
     let match = form.match(pattern);
     return match ? match : [];
   }
@@ -148,14 +148,6 @@ export class Signer {
    * Notes: should be /cart . Notice that it does not includes the domain.
    **/
   protected cartPath: string = '/cart';
-
-  public setCartUrl(cart_url: string) {
-    this.cartPath = cart_url;
-  }
-
-  public getCartUrl() {
-    return this.cartPath;
-  }
 
   /**
    * Cart Excludes
@@ -181,10 +173,10 @@ export class Signer {
   ];
 
   public async signUrl(url: string): Promise<string> {
-    if (strPos(url, '||')) {
+    if (strContains(url, '||')) {
       return url;
     }
-    const pattern = '(?<protocol>https?:\/\/)(?<domain>[^?\/]*)' + this.cartPath + '(\.php)?\\?(?<querystring>.*)';
+    const pattern = '(?<protocol>https?:\/\/)(?<domain>[^?\/]*?)' + this.cartPath + '(\.php)?\\?(?<querystring>.*)';
     const match = url.match(pattern);
     if (!match || !match.groups) {
       return url;
@@ -203,7 +195,7 @@ export class Signer {
     qs = qs.replace(/^\?/, '');
     const fail = '?' + qs;
     // If the link appears to be hashed already, don't bother
-    if (strPos(qs, '||')) {
+    if (strContains(qs, '||')) {
       return fail;
     }
     // Stick an ampersand on the beginning of the querystring to make matching the first element a little easier
@@ -324,7 +316,7 @@ export class Signer {
     for (let code of codes) {
       // If the form appears to be hashed already, don't bother
       // If the code is empty, skip this form or specific prefixed elements
-      if (!code.code || strPos(code.matched, '||')) {
+      if (!code.code || strContains(code.matched, '||')) {
         return form_original;
       }
       // Sign all <input /> elements with matching prefix
@@ -408,9 +400,12 @@ export class Signer {
     // Find and sign all the links
     const queryStrings = this.__getQueryStrings(html);
     for (let queryString of queryStrings) {
-      const regex = new RegExp(`href=['"]${queryString.domain}${this.cartPath}(\.php)?.${queryString.query.replace(/^\?/, '')}['"]`);
+      if (strContains(queryString.matched, '||')) {
+        continue;
+      }
       const url = queryString.matched.replace(/href=['"]/, '').replace(/['"]$/,  '');
-      const signed = await this.signUrl(url);
+      const signed = await this.signUrl(`${queryString.domain}${this.cartPath}${queryString.query}`);
+      const regex = new RegExp(`href=['"]${queryString.domain}${this.cartPath}(\.php)?.${queryString.query.replace(/^\?/, '')}['"]`);
       if (signed != url) {
         html = html.replace(regex, `href="${signed}"`);
       }
