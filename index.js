@@ -1,7 +1,7 @@
 // global FX_CLIENT_SECRET
 
-import { Signer } from './src/CartValidation/cart-validation.ts'
-import { Hmac } from './src/Signer'
+import { Signer } from "./src/CartValidation/cart-validation.ts";
+import { Hmac } from "./src/Signer";
 
 /**
  * Handles the request
@@ -18,7 +18,6 @@ async function handleRequest(req) {
   return new Response(responseBody, res);
 }
 
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request))
-})
-
+addEventListener("fetch", (event) => {
+  event.respondWith(handleRequest(event.request));
+});

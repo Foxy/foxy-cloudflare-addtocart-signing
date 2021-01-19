@@ -4,15 +4,13 @@
  * Provides a sign method that
  */
 export class MockHmac {
-
-
   constructor(secret, cryptoEngine, codes = {}) {
-    this.willFail = false
+    this.willFail = false;
     this.__codes = codes;
     this.subtle = {
-      importKey: () => 'key',
-      sign: () => Promise.resolve(new Buffer('signed'))
-    }
+      importKey: () => "key",
+      sign: () => Promise.resolve(new Buffer("signed")),
+    };
   }
 
   sign() {
@@ -24,11 +22,11 @@ export class MockHmac {
   }
 
   async signInput(el) {
-    el.setAttribute('name', 'signed');
+    el.setAttribute("name", "signed");
   }
 
   async signOption(el) {
-    el.setAttribute('value', 'signed');
+    el.setAttribute("value", "signed");
   }
 
   async signRadio(el) {

@@ -8,7 +8,7 @@
     "build": "webpack",
     "test": "c8 mocha",
     "test:manual": "wrangler preview -c dev.wrangler.toml",
-    "format": "prettier --write '**/*.{js,css,json,md}'"
+    "format": "prettier --write '**/*.{js,ts,css,json,md}'"
   },
   "author": "Foxy.io",
   "type": "module",

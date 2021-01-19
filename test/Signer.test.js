@@ -1,46 +1,52 @@
-import {before, describe, it} from 'mocha';
-import {JSDOM} from 'jsdom';
-import {MockHmac} from "./mock/crypto.js";
-import {Signer, Hmac} from "../src/Signer.js";
-import pkg from 'chai';
+import { before, describe, it } from "mocha";
+import { JSDOM } from "jsdom";
+import { MockHmac } from "./mock/crypto.js";
+import { Signer, Hmac } from "../src/Signer.js";
+import pkg from "chai";
 import chaiAsPromised from "chai-as-promised";
 
 pkg.use(chaiAsPromised);
 const expect = pkg.expect;
 
-describe ("Mmac", () => {
-
-  it ('Cannot operate with an undefined secret', async () => {
+describe("Mmac", () => {
+  it("Cannot operate with an undefined secret", async () => {
     const hmac = new Hmac(undefined, {});
-    expect(hmac.sign('message')).to.be.rejected;
+    expect(hmac.sign("message")).to.be.rejected;
   });
 
-  it ("Signs a simple message", async () => {
-    const hmac = new Hmac('1', new MockHmac());
+  it("Signs a simple message", async () => {
+    const hmac = new Hmac("1", new MockHmac());
     const message = "foo";
-    global.btoa = (s) => 'b64 ' + s;
+    global.btoa = (s) => "b64 " + s;
     const signed = await hmac.sign(message);
-    expect(signed).to.equal('b64 signed');
+    expect(signed).to.equal("b64 signed");
   });
-
 });
 
 describe("Signer", () => {
-  const signer = new Signer("1", { 0: {code: "1234"}, 1: {code: "5678"}, 2: {code: "9012"}}, new MockHmac());
+  const signer = new Signer(
+    "1",
+    { 0: { code: "1234" }, 1: { code: "5678" }, 2: { code: "9012" } },
+    new MockHmac()
+  );
 
   describe("Signs basic items", async () => {
-
-
-    it ("Signs an input name", async () => {
-      expect(await signer.signName("name", "1234", "", "foo")).to.equal("name||signed");
+    it("Signs an input name", async () => {
+      expect(await signer.signName("name", "1234", "", "foo")).to.equal(
+        "name||signed"
+      );
     });
 
-    it ("Signs an open input name",  async () => {
-      expect(await signer.signName("name", "1234", "")).to.equal("name||signed||open");
+    it("Signs an open input name", async () => {
+      expect(await signer.signName("name", "1234", "")).to.equal(
+        "name||signed||open"
+      );
     });
 
     it("Signs an open value", async () => {
-      expect(await signer.signValue("name", "1234", "")).to.equal("||open||signed");
+      expect(await signer.signValue("name", "1234", "")).to.equal(
+        "||open||signed"
+      );
     });
 
     it("Signs a whole URL", async () => {
@@ -56,17 +62,18 @@ describe("Signer", () => {
     });
 
     it("Does not a codeless URL", async () => {
-      const badURL = 'http://example.com?name=foo&price=10';
+      const badURL = "http://example.com?name=foo&price=10";
       expect(await signer.signUrl(badURL)).to.equal(badURL);
     });
 
     it("Does not change malformed URLs", async () => {
-      const badURL = 'foo?bar';
+      const badURL = "foo?bar";
       expect(await signer.signUrl(badURL)).to.equal(badURL);
     });
 
     it("Does not change an already signed URL", async () => {
-      const signedURL = 'http://example.com?name||aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+      const signedURL =
+        "http://example.com?name||aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
       expect(await signer.signUrl(signedURL)).to.equal(signedURL);
     });
   });
@@ -78,35 +85,47 @@ describe("Signer", () => {
       pageWithForm = new JSDOM(htmlPageWithForm);
     });
 
-    it( "Signs an HTML input element", async () => {
-      const inputEl = pageWithForm.window.document.querySelector('input[name=name]');
+    it("Signs an HTML input element", async () => {
+      const inputEl = pageWithForm.window.document.querySelector(
+        "input[name=name]"
+      );
       await signer.signInput(inputEl);
-      expect(inputEl.getAttribute('name')).to.equal('0:name||signed');
+      expect(inputEl.getAttribute("name")).to.equal("0:name||signed");
     });
 
-    it( "Signs an HTML input radio element", async () => {
-      const inputEl = pageWithForm.window.document.querySelector('input[type=radio]');
+    it("Signs an HTML input radio element", async () => {
+      const inputEl = pageWithForm.window.document.querySelector(
+        "input[type=radio]"
+      );
       await signer.signRadio(inputEl);
-      expect(inputEl.getAttribute('name')).to.equal('shipment');
-      expect(inputEl.getAttribute('value')).to.equal('0:express||signed');
+      expect(inputEl.getAttribute("name")).to.equal("shipment");
+      expect(inputEl.getAttribute("value")).to.equal("0:express||signed");
     });
 
-    it( "Signs an open HTML input element", async () => {
-      const inputEl = pageWithForm.window.document.querySelector('input[name=quantity]');
+    it("Signs an open HTML input element", async () => {
+      const inputEl = pageWithForm.window.document.querySelector(
+        "input[name=quantity]"
+      );
       await signer.signInput(inputEl);
-      expect(inputEl.getAttribute('name')).to.equal('0:quantity||signed||open');
+      expect(inputEl.getAttribute("name")).to.equal("0:quantity||signed||open");
     });
 
-    it( "Signs an open HTML textarea element", async () => {
-      const inputEl = pageWithForm.window.document.querySelector('textarea[name=additional-details]');
+    it("Signs an open HTML textarea element", async () => {
+      const inputEl = pageWithForm.window.document.querySelector(
+        "textarea[name=additional-details]"
+      );
       await signer.signTextArea(inputEl);
-      expect(inputEl.getAttribute('name')).to.equal('0:additional-details||signed||open');
+      expect(inputEl.getAttribute("name")).to.equal(
+        "0:additional-details||signed||open"
+      );
     });
 
     it("Signs an option element", async () => {
-      const optionEl = pageWithForm.window.document.querySelector('option[value=small\\{p-2\\}]');
+      const optionEl = pageWithForm.window.document.querySelector(
+        "option[value=small\\{p-2\\}]"
+      );
       await signer.signOption(optionEl);
-      expect(optionEl.getAttribute('value')).to.equal('0:small{p-2}||signed');
+      expect(optionEl.getAttribute("value")).to.equal("0:small{p-2}||signed");
     });
 
     describe("Leave inputs untouched if there is no code available for them", () => {
@@ -117,40 +136,47 @@ describe("Signer", () => {
         pageWithForm = new JSDOM(htmlPageWithForm);
       });
 
-      it( "Leaves an HTML input element", async () => {
-        const inputEl = pageWithForm.window.document.querySelector('input[name=name]');
+      it("Leaves an HTML input element", async () => {
+        const inputEl = pageWithForm.window.document.querySelector(
+          "input[name=name]"
+        );
         await signer.signInput(inputEl);
-        expect(inputEl.getAttribute('name')).to.equal('name');
+        expect(inputEl.getAttribute("name")).to.equal("name");
       });
 
-      it( "Leaves an HTML input radio element", async () => {
-        const inputEl = pageWithForm.window.document.querySelector('input[type=radio]');
+      it("Leaves an HTML input radio element", async () => {
+        const inputEl = pageWithForm.window.document.querySelector(
+          "input[type=radio]"
+        );
         await signer.signRadio(inputEl);
-        expect(inputEl.getAttribute('name')).to.equal('shipment');
-        expect(inputEl.getAttribute('value')).to.equal('express');
+        expect(inputEl.getAttribute("name")).to.equal("shipment");
+        expect(inputEl.getAttribute("value")).to.equal("express");
       });
 
-      it( "Leaves an open HTML input element", async () => {
-        const inputEl = pageWithForm.window.document.querySelector('input[name=quantity]');
+      it("Leaves an open HTML input element", async () => {
+        const inputEl = pageWithForm.window.document.querySelector(
+          "input[name=quantity]"
+        );
         await signer.signInput(inputEl);
-        expect(inputEl.getAttribute('name')).to.equal('quantity');
+        expect(inputEl.getAttribute("name")).to.equal("quantity");
       });
 
-      it( "Leaves an open HTML textarea element", async () => {
-        const inputEl = pageWithForm.window.document.querySelector('textarea[name=additional-details]');
+      it("Leaves an open HTML textarea element", async () => {
+        const inputEl = pageWithForm.window.document.querySelector(
+          "textarea[name=additional-details]"
+        );
         await signer.signTextArea(inputEl);
-        expect(inputEl.getAttribute('name')).to.equal('additional-details');
+        expect(inputEl.getAttribute("name")).to.equal("additional-details");
       });
 
       it("Leaves an option element", async () => {
-        const optionEl = pageWithForm.window.document.querySelector('option[value=small\\{p-2\\}]');
+        const optionEl = pageWithForm.window.document.querySelector(
+          "option[value=small\\{p-2\\}]"
+        );
         await signer.signOption(optionEl);
-        expect(optionEl.getAttribute('value')).to.equal('small{p-2}');
+        expect(optionEl.getAttribute("value")).to.equal("small{p-2}");
       });
-
-
     });
-
   });
 });
 

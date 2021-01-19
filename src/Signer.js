@@ -1,6 +1,4 @@
-
 export class Hmac {
-
   constructor(secret, cryptoEngine = null) {
     this.__secret = secret;
     this.__crypto = cryptoEngine || crypto;
@@ -17,19 +15,23 @@ export class Hmac {
       throw new Error("No secret was provided to build the hmac");
     }
     const encodedMessage = new TextEncoder().encode(message);
-    const signature = await this.__crypto.subtle.sign("HMAC", await this.__getKey(), encodedMessage);
+    const signature = await this.__crypto.subtle.sign(
+      "HMAC",
+      await this.__getKey(),
+      encodedMessage
+    );
     return btoa(String.fromCharCode(...Array.from(new Uint8Array(signature))));
   }
 
   async __getKey() {
-    return this.__crypto.subtle.importKey("raw",
-        new TextEncoder().encode(this.__secret),
-        { name: "HMAC", hash: "SHA-256" },
-        false,
-        ["sign", "verify"]
+    return this.__crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(this.__secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign", "verify"]
     );
   }
-
 }
 
 /**
@@ -43,7 +45,6 @@ export class Hmac {
  *          signer.signUrl("http://..."); // signs a URL
  */
 export class Signer {
-
   /**
    * Creates an instance of this class.
    *
@@ -51,7 +52,7 @@ export class Signer {
    * @param {Object} codes an object that contains the code and parent code for each of the products prefixes.
    * @param {{sign: Function}} hmacEngine that is able to create Base64 encoded HMAC signatures of a string.
    */
-  constructor(secret, codes, hmacEngine =null) {
+  constructor(secret, codes, hmacEngine = null) {
     this.__secret = secret;
     this.__codes = codes;
     this.hmac = hmacEngine ? hmacEngine : new Hmac(secret);
@@ -360,5 +361,4 @@ export class Signer {
       .replace(/%3D/g, "=")
       .replace(/%2B/g, "+");
   }
-
 }
