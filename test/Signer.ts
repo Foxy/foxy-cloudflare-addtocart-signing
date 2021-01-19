@@ -1,5 +1,5 @@
 /* eslint-disable no-useless-escape */
-import { Signer } from "../src/cart-validation";
+import { Signer } from "../src/Signer";
 import { MockHmac } from "./mock/crypto";
 import { expect } from "chai";
 

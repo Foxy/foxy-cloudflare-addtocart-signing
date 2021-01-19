@@ -1,6 +1,6 @@
 // global FX_CLIENT_SECRET
 
-import { Signer } from "./src/cart-validation.ts";
+import { Signer } from "./src/Signer.ts";
 import { Hmac } from "./src/Hmac";
 
 /**
