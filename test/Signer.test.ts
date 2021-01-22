@@ -8,11 +8,25 @@ import "mocha";
 const signer = new Signer(new MockHmac("1", {}));
 
 describe("Signer", () => {
+  describe("Sign name value pairs", () => {
+    it("signs name value pairs", async () => {
+      expect(await signer.signName("1", "foo", "bar")).to.equal("foo||signed");
+    });
+
+    it("Does not sign empty code", async () => {
+      expect(await signer.signName("", "foo", "bar")).to.equal(false);
+    });
+
+    it("Does not sign empty name", async () => {
+      expect(await signer.signName("2", "", "bar")).to.equal(false);
+    });
+  });
+
   describe("Given a URL", async () => {
     const uri = "http://foobar.com/cart";
-    const fullURL =
-      uri +
+    const queryString =
       "?code=mycode&name=testname&price=123.00&other_atribute=Some Other Thing";
+    const fullURL = uri + queryString;
     const signedQS =
       "0:code=mycode||signed&" +
       "0:name=testname||signed&" +
@@ -39,6 +53,24 @@ describe("Signer", () => {
       for (let url of malformed) {
         expect(await signer.signUrl(url)).to.equal(url);
       }
+    });
+
+    it("does not sign a signed querystring", async () => {
+      const signed = await signer.signQueryString(queryString);
+      const resigned = await signer.signQueryString(signed);
+      expect(signed).to.equal(resigned);
+    });
+
+    it("does not sign a signed url", async () => {
+      const signed = await signer.signUrl(fullURL);
+      const resigned = await signer.signUrl(signed);
+      expect(signed).to.equal(resigned);
+    });
+
+    it("signs a query string with open parameters", async () => {
+      const withOpen = queryString + "&notes=--OPEN--";
+      const signed = await signer.signQueryString(withOpen);
+      expect(signed).to.equal("?" + signedQS + "&notes||signed||open=");
     });
 
     it("Signs a query string with a parent code", async () => {
@@ -168,11 +200,36 @@ describe("Signer", () => {
           const url = `http://foo.com/cart?code=100&${exclude}=bar&price=10`;
           let signed = `http://foo.com/cart?0:code=100||signed&${exclude}=bar&0:price=10||signed`;
           expect(await signer.signUrl(url)).to.equal(signed);
-          const form = `
+          let form = `
             <form action="http://foo.com/cart">
               <input type="hidden" name="code" value="100">
               <input type="hidden" name="${exclude}" value="bar">
-              <input type="hidden" name="10" value="10">
+              <input type="hidden" name="price" value="10">
+            </form>
+          `;
+          signed = form
+            .replace("code", "0:code||signed")
+            .replace("price", "0:price||signed");
+          expect(await signer.signForm(form)).to.equal(signed);
+          form = `
+            <form action="http://foo.com/cart">
+              <input type="hidden" name="code" value="100">
+              <select name="${exclude}">
+                <option value="foo">foo</option>
+                <option value="bar">bar</option>
+              </select>
+              <input type="hidden" name="price" value="10">
+            </form>
+          `;
+          signed = form
+            .replace("code", "0:code||signed")
+            .replace("price", "0:price||signed");
+          expect(await signer.signForm(form)).to.equal(signed);
+          form = `
+            <form action="http://foo.com/cart">
+              <input type="hidden" name="code" value="100">
+              <textarea name="${exclude}"></textarea>
+              <input type="hidden" name="price" value="10">
             </form>
           `;
           signed = form

@@ -12,6 +12,8 @@ interface HMACInterface {
   sign: (s: string) => Promise<Buffer>;
 }
 
+const OPEN = "--OPEN--";
+
 /**
  * Return a list of matched groups.
  *
@@ -227,7 +229,7 @@ export class Signer {
         true
       );
       let replacement: string;
-      if (decodeURI(pair["value"]) == "--OPEN--") {
+      if (decodeURI(pair["value"]) == OPEN) {
         replacement = pair["amp"] + value + "=";
       } else {
         replacement =
@@ -257,7 +259,7 @@ export class Signer {
     option_name = option_name.replace(" ", "_");
     let hash;
     let value;
-    if (option_value == "--OPEN--") {
+    if (option_value == OPEN) {
       hash = await this.hmac!.sign(
         `${product_code}${option_name}${option_value}`
       );
@@ -353,9 +355,9 @@ export class Signer {
 
   private async __signTextAreas(html: string, code: Product): Promise<string> {
     let pattern = new RegExp(
-      "<textarea [^>]*name=['\"]" +
-        code.prefix +
-        "(?![0-9]{1,3})(?<name>)(.+?)['\"][^>]*>(?<value>.*?)</textarea>",
+      "<textarea [^>]*name=(['\"])" +
+        this.__prefixRegex(code.prefix) +
+        "(?![0-9]{1,3})(?<name>.+?)\\1[^>]*>(?<value>.*?)</textarea>",
       "isg"
     );
     for (let textarea of matchGroups(html, pattern)) {
@@ -364,7 +366,7 @@ export class Signer {
         continue;
       }
       // Tackle implied "--OPEN--" first, if textarea is empty
-      textarea.value = textarea.value == "" ? "--OPEN--" : textarea.value;
+      textarea.value = textarea.value == "" ? OPEN : textarea.value;
       pattern = new RegExp(
         "name=(['\"])" + code.prefix + textarea.name + "['\"]"
       );
@@ -410,7 +412,7 @@ export class Signer {
       if (this.__shouldSkipInput(code.prefix + name)) {
         return input;
       }
-      value[2] = value[2] == "" ? "--OPEN--" : value[2];
+      value[2] = value[2] == "" ? OPEN : value[2];
       if (type[2] == "radio") {
         pattern = new RegExp("(['\"])" + value[2] + "['\"]");
         input_signed = input.replace(
