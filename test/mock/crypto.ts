@@ -8,7 +8,7 @@ export class MockHmac {
   private __codes;
   subtle: {
     importKey: () => string;
-    sign: () => Promise<string>;
+    sign: () => Promise<ArrayBuffer>;
   };
 
   constructor(secret: string, cryptoEngine: any, codes = {}) {
@@ -16,12 +16,14 @@ export class MockHmac {
     this.__codes = codes;
     this.subtle = {
       importKey: () => "key",
-      sign: () => Promise.resolve("signed"),
+      sign: () => Promise.resolve(Buffer.from("signed", "utf-8")),
     };
   }
 
   sign() {
-    return this.willFail ? Promise.reject() : Promise.resolve("signed");
+    return this.willFail
+      ? Promise.reject()
+      : Promise.resolve(Buffer.from("signed", "utf8"));
   }
 
   signUrl() {

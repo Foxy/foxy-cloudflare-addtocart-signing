@@ -2,6 +2,7 @@
 import { Signer } from "../src/Signer";
 import { MockHmac } from "./mock/crypto";
 import { expect } from "chai";
+import "mocha";
 
 describe("Signer", () => {
   const signer = new Signer(new MockHmac("1", {}));

@@ -1,7 +1,39 @@
+interface CryptoEngine {
+  subtle: {
+    sign: (
+      algorithm:
+        | string
+        | Algorithm
+        | RsaPssParams
+        | EcdsaParams
+        | AesCmacParams,
+      key: CryptoKey,
+      data: ArrayBuffer
+    ) => Promise<ArrayBuffer>;
+    importKey: (
+      format: "jwk" | "raw",
+      keyData: JsonWebKey | Uint8Array,
+      algorithm:
+        | string
+        | Algorithm
+        | RsaHashedImportParams
+        | EcKeyImportParams
+        | HmacImportParams
+        | DhImportKeyParams
+        | AesKeyAlgorithm,
+      extractable: boolean,
+      keyUsages: KeyUsage[]
+    ) => Promise<CryptoKey>;
+  };
+}
+
 export class Hmac {
-  constructor(secret, cryptoEngine = null) {
+  private readonly __secret: string;
+  private readonly __crypto: CryptoEngine;
+
+  constructor(secret: string, cryptoEngine: CryptoEngine | null = null) {
     this.__secret = secret;
-    this.__crypto = cryptoEngine || crypto;
+    this.__crypto = cryptoEngine || (crypto as CryptoEngine);
   }
 
   /**
@@ -10,7 +42,7 @@ export class Hmac {
    * @param {string} message the message to be signed.
    * @returns {Promise<string>} signed message.
    */
-  async sign(message) {
+  async sign(message: string): Promise<string> {
     if (this.__secret === undefined) {
       throw new Error("No secret was provided to build the hmac");
     }
@@ -23,7 +55,7 @@ export class Hmac {
     return btoa(String.fromCharCode(...Array.from(new Uint8Array(signature))));
   }
 
-  async __getKey() {
+  async __getKey(): Promise<CryptoKey> {
     return this.__crypto.subtle.importKey(
       "raw",
       new TextEncoder().encode(this.__secret),

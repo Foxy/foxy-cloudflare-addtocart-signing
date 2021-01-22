@@ -1,3 +1,5 @@
+import * as buffer from "buffer";
+
 interface Product {
   matched: string;
   prefix: string;
@@ -6,7 +8,7 @@ interface Product {
 }
 
 interface HMACInterface {
-  sign: (s: string) => Promise<string>;
+  sign: (s: string) => Promise<Buffer>;
 }
 
 /**
