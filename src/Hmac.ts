@@ -43,9 +43,6 @@ export class Hmac {
    * @returns {Promise<string>} signed message.
    */
   async sign(message: string): Promise<string> {
-    if (this.__secret === undefined) {
-      throw new Error("No secret was provided to build the hmac");
-    }
     const encodedMessage = new TextEncoder().encode(message);
     const signature = await this.__crypto.subtle.sign(
       "HMAC",

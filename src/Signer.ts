@@ -522,14 +522,13 @@ export class Signer {
     const form_original = html;
     // Check for the "code" input, set the matches in $codes
     const codes = this.__getFormCodes(html);
-    if (!codes) {
+    if (!codes.length) {
       return form_original;
     }
     // For each code found, sign the appropriate inputs
     for (let code of codes) {
-      // If the form appears to be hashed already, don't bother
       // If the code is empty, skip this form or specific prefixed elements
-      if (!code.code || strContains(code.matched, "||")) {
+      if (!code.code) {
         continue;
       }
       // Sign all <input /> elements with matching prefix
