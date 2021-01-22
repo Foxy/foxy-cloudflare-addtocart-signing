@@ -97,7 +97,7 @@ export class Signer {
     // get parent codes if they exist and append them to our code
     for (let item of inputs) {
       if (strContains(item, "parent_code")) {
-        const match = item.match(/value=(['"])(.*?)['"]/i);
+        const match = item.match(/value=(['"])(.*?)\1/i);
         if (match) {
           return match[2];
         }
@@ -119,9 +119,9 @@ export class Signer {
 
   public __getQueryStrings(html: string): Record<string, string>[] {
     let pattern = new RegExp(
-      "<a .*?href=['\"](?<domain>[^'\"]*?)" +
+      "<a .*?href=(['\"])(?<domain>[^'\"]*?)" +
         this.cartPath +
-        "(.php)??(?<query>.*?)['\"][^>]*?>",
+        "(.php)??(?<query>.*?)\\1[^>]*?>",
       "gi"
     );
     return matchGroups(html, pattern);
@@ -129,13 +129,13 @@ export class Signer {
 
   private __getFormCodes(form: string): Product[] {
     const regex = new RegExp(
-      "<[^>]*?name=['\"](?<prefix>[0-9]{1,3}:)?code['\"][^>]*?>",
+      "<[^>]*?name=(['\"])(?<prefix>[0-9]{1,3}:)?code\\1[^>]*?>",
       "ig"
     );
     const codes = matchGroups(form, regex);
     for (let group of codes) {
-      const match = group.matched.match(/value=["'](.+)['"]/);
-      group.code = match ? match[1] : "";
+      const match = group.matched.match(/value=(["'])(.+)\1/);
+      group.code = match ? match[2] : "";
       if (group.prefix === undefined) {
         group.prefix = "0:";
       }
@@ -325,7 +325,7 @@ export class Signer {
       }
       let options = matchGroups(
         select.children,
-        /<option [^>]*value=(?<quote>['"])(?<value>.*?)['"][^>]*>(?:.*?)<\/option>/g
+        /<option [^>]*value=(?<quote>(['"]))(?<value>.*?)\2[^>]*>(?:.*?)<\/option>/g
       );
       signedSelect = select.matched;
       for (let option of options) {
@@ -465,7 +465,7 @@ export class Signer {
     }
     // Exclude all <button> elements
     html = html.replace(
-      /<button ([^>]*)name=(['"])(.*?)['"]([^>]*>.*?<\/button>)/i,
+      /<button ([^>]*)name=(['"])(.*?)\2([^>]*>.*?<\/button>)/i,
       "<button $1name=$2x:$3$4"
     );
     // Replace the entire form
@@ -495,9 +495,9 @@ export class Signer {
         `${queryString.domain}${this.cartPath}${queryString.query}`
       );
       const regex = new RegExp(
-        `href=['"]${queryString.domain}${
+        `href=(['"])${queryString.domain}${
           this.cartPath
-        }(\.php)?.${queryString.query.replace(/^\?/, "")}['"]`
+        }(\.php)?.${queryString.query.replace(/^\?/, "")}\\1`
       );
       if (signed != url) {
         html = html.replace(regex, `href="${signed}"`);

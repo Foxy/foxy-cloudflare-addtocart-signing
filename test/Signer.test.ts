@@ -32,7 +32,7 @@ describe("Signer", () => {
 
     it("does not sign a malformed URL", async () => {
       const malformed = [
-        uri + "?code=1&price=10",
+        "http:/foobar.com?code=1&price=10",
         "http://foobar.com?code=1&price=10",
         "http://foobar.com/cart",
       ];
