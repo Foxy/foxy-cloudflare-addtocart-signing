@@ -2,6 +2,7 @@
 import { Signer } from "../src/Signer";
 import { MockHmac } from "./mock/crypto";
 import { expect } from "chai";
+import { cart_excludes_prefixes, cart_excludes } from "../src/excludes";
 import "mocha";
 
 describe("Signer", () => {
@@ -81,9 +82,7 @@ describe("Signer", () => {
     describe("Signs a whole HTML with forms", () => {
       it("Signs an HTML string with a form", async () => {
         const signedHTML = signer.signHtml(htmlPageWithForm);
-        // e.g: ||aed2692b1b278b04b974c3c9822e597dc5da880561cf256ab20b2873a5346b66=
         const namePrefixRegex = /name="\d{1,3}:/;
-        const valuePrefixRegex = /value="\d{1,3}:/;
         const signatureRegex = /\|\|signed/;
         const expectedAttributeMatches: [RegExp, RegExp, number][] = [
           [namePrefixRegex, /name/, 5],
@@ -119,6 +118,21 @@ describe("Signer", () => {
         const signedHTML = await signer.signHtml(htmlPageWithForm);
         expect(await signer.signHtml(signedHTML)).to.equal(signedHTML);
       });
+    });
+  });
+
+  describe("There are some values that should not be signed.", () => {
+    describe("Does not sign cart excludes", () => {
+      it("does not sign unprefixed cart excludes", async () => {
+        for (const exclude of cart_excludes) {
+          const url = `http://foo.com/cart?code=100&${exclude}=bar&price=10`;
+          const signed = `http://foo.com/cart?0:code=100||signed&${exclude}=bar&0:price=10||signed`;
+          expect(await signer.signUrl(url)).to.equal(signed);
+        }
+      });
+      it("does not sign prefixed cart excludes");
+      it("does not sign cart excludes in forms with signable fields");
+      it("does not sign cart excludes in urls with signable fields");
     });
   });
 });

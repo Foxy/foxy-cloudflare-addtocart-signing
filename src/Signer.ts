@@ -1,4 +1,5 @@
 import * as buffer from "buffer";
+import { cart_excludes, cart_excludes_prefixes } from "./excludes";
 
 interface Product {
   matched: string;
@@ -165,62 +166,9 @@ export class Signer {
    **/
   protected cartPath: string = "/cart";
 
-  /**
-   * Cart Excludes
-   *
-   * Arrays of values and prefixes that should be ignored when signing links and forms.
-   * @var array
-   */
-  protected static cart_excludes = [
-    // Analytics values
-    "_",
-    "_ga",
-    "_ke",
-    // Cart values
-    "cart",
-    "fcsid",
-    "empty",
-    "coupon",
-    "output",
-    "sub_token",
-    "redirect",
-    "callback",
-    "locale",
-    "template_set",
-    // Checkout pre-population values
-    "customer_email",
-    "customer_first_name",
-    "customer_last_name",
-    "customer_address1",
-    "customer_address2",
-    "customer_city",
-    "customer_state",
-    "customer_postal_code",
-    "customer_country",
-    "customer_phone",
-    "customer_company",
-    "billing_first_name",
-    "billing_last_name",
-    "billing_address1",
-    "billing_address2",
-    "billing_city",
-    "billing_postal_code",
-    "billing_region",
-    "billing_phone",
-    "billing_company",
-    "shipping_first_name",
-    "shipping_last_name",
-    "shipping_address1",
-    "shipping_address2",
-    "shipping_city",
-    "shipping_state",
-    "shipping_country",
-    "shipping_postal_code",
-    "shipping_region",
-    "shipping_phone",
-    "shipping_company",
-  ];
-  protected static cart_excludes_prefixes = ["h:", "x:", "__", "utm_"];
+  protected static cart_excludes = cart_excludes;
+
+  protected static cart_excludes_prefixes = cart_excludes_prefixes;
 
   public async signUrl(url: string): Promise<string> {
     if (strContains(url, "||")) {
@@ -267,21 +215,7 @@ export class Signer {
     }
     // Sign the name/value pairs
     for (let pair of pairs) {
-      // Skip the cart excludes
-      let include_pair = true;
-      if (pair["name"] in Signer.cart_excludes) {
-        include_pair = false;
-      }
-      for (let exclude_prefix of Signer.cart_excludes_prefixes) {
-        if (
-          (pair["prefix"] + pair["name"])
-            .toLowerCase()
-            .substr(0, exclude_prefix.length) == exclude_prefix
-        ) {
-          include_pair = false;
-        }
-      }
-      if (!include_pair) {
+      if (this.__shouldSkipInput(pair["prefix"] + pair["name"])) {
         continue;
       }
       // Continue to sign the value and replace the name=value in the querystring with name=value||hash
@@ -360,8 +294,9 @@ export class Signer {
   }
 
   private __shouldSkipInput(name: string): boolean {
+    const prefixStripped = name.replace(/^\d:/, "");
     return (
-      name in Signer.cart_excludes ||
+      Signer.cart_excludes.includes(prefixStripped) ||
       Signer.cart_excludes_prefixes.some((p) =>
         name.toLowerCase().startsWith(p)
       )
