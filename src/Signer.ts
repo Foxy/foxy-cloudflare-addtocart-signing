@@ -87,7 +87,7 @@ export class Signer {
     }
     for (let pair of pairs) {
       if (pair.name == "parent_code") {
-        codes[pair.prefix] += pair.value;
+        codes[pair.prefix] = `${codes[pair.prefix]}${pair.value}`;
       }
     }
     return codes;
@@ -234,18 +234,6 @@ export class Signer {
           pair["amp"] + pair["prefix"] + encodeURI(pair["name"]) + "=" + value;
       }
       qs = qs.replace(pair.matched, replacement);
-      this.log.push(
-        "Signed <strong>" +
-          pair["name"] +
-          "</strong> = <strong>" +
-          pair["value"] +
-          "</strong> with " +
-          replacement +
-          ".<br />Replacing: " +
-          pair[0] +
-          "<br />With... " +
-          replacement
-      );
     }
     qs = qs.replace(/^&/, ""); // Get rid of that leading ampersand we added earlier
     return "?" + qs;
@@ -297,8 +285,10 @@ export class Signer {
     const prefixStripped = name.replace(/^\d:/, "");
     return (
       Signer.cart_excludes.includes(prefixStripped) ||
-      Signer.cart_excludes_prefixes.some((p) =>
-        name.toLowerCase().startsWith(p)
+      Signer.cart_excludes_prefixes.some(
+        (p) =>
+          name.toLowerCase().startsWith(p) ||
+          (name.startsWith("0:") && prefixStripped.toLowerCase().startsWith(p))
       )
     );
   }
@@ -412,21 +402,21 @@ export class Signer {
     match = input.match(pattern);
     const name = match ? match.groups!.name : "";
     if (match) {
-      match = input.match(/value=['"](.*?)['"]/);
+      match = input.match(/value=(['"])(.*?)\1/);
       let value = match ? match : ["", "", ""];
-      match = input.match(/type=['"](.*?)['"]/);
+      match = input.match(/type=(['"])(.*?)\1/);
       let type = match ? match : ["", "", ""];
       // Skip the cart excludes
-      if (this.__shouldSkipInput(prefix + name)) {
+      if (this.__shouldSkipInput(code.prefix + name)) {
         return input;
       }
-      value[1] = value[1] == "" ? "--OPEN--" : value[1];
-      if (type[1] == "radio") {
-        pattern = new RegExp("(['\"])" + value[1] + "['\"]");
+      value[2] = value[2] == "" ? "--OPEN--" : value[2];
+      if (type[2] == "radio") {
+        pattern = new RegExp("(['\"])" + value[2] + "['\"]");
         input_signed = input.replace(
           pattern,
           '"' +
-            (await this.signName(matchedCode, name, value[1], "value", false)) +
+            (await this.signName(matchedCode, name, value[2], "value", false)) +
             '"'
         );
       } else {
@@ -435,7 +425,7 @@ export class Signer {
           pattern,
           'name="' +
             code.prefix +
-            (await this.signName(matchedCode, name, value[1], "name", false)) +
+            (await this.signName(matchedCode, name, value[2], "name", false)) +
             '"'
         );
       }
