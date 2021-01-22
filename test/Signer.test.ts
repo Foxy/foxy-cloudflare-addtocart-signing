@@ -7,16 +7,28 @@ import "mocha";
 describe("Signer", () => {
   const signer = new Signer(new MockHmac("1", {}));
 
-  it("Signs a whole URL", async () => {
+  it("Signs a query string", async () => {
     const fullURL =
-      "code=mycode&name=testname&price=123.00&other_atribute=Some Other Thing";
+      "?code=mycode&name=testname&price=123.00&other_atribute=Some Other Thing";
     const signedURL =
-      "/cart?" +
+      "?" +
       "0:code=mycode||signed&" +
       "0:name=testname||signed&" +
       "0:price=123.00||signed&" +
       "0:other_atribute=Some%20Other%20Thing||signed";
     expect(await signer.signQueryString(fullURL)).to.equal(signedURL);
+  });
+
+  it("Signs a whole URL", async () => {
+    const fullURL =
+      "http://foobar.com/cart?code=mycode&name=testname&price=123.00&other_atribute=Some Other Thing";
+    const signedURL =
+      "http://foobar.com/cart?" +
+      "0:code=mycode||signed&" +
+      "0:name=testname||signed&" +
+      "0:price=123.00||signed&" +
+      "0:other_atribute=Some%20Other%20Thing||signed";
+    expect(await signer.signUrl(fullURL)).to.equal(signedURL);
   });
 
   it("Signs a whole HTML string with links", async () => {

@@ -391,42 +391,37 @@ export class Signer {
         "(?![0-9]{1,3})(?<name>.+?)['\"][^>]*>(?<children>.+?)</select>",
       "isg"
     );
-    let options = matchGroups(html, pattern);
-    let form_part_signed = "";
-    for (let option of options) {
+    let selects = matchGroups(html, pattern);
+    let signedSelect = "";
+    for (let select of selects) {
       // Skip the cart excludes
-      if (this.__shouldSkipInput(code.prefix + option.name)) {
+      if (this.__shouldSkipInput(code.prefix + select.name)) {
         continue;
       }
       let options = matchGroups(
-        option.children,
+        select.children,
         /<option [^>]*value=(?<quote>['"])(?<value>.*?)['"][^>]*>(?:.*?)<\/option>/g
       );
+      signedSelect = select.matched;
       for (let option of options) {
         if (!option.value) {
           continue;
-        }
-        if (!form_part_signed) {
-          form_part_signed = option.matched;
         }
         const option_signed = option.matched.replace(
           option.quote + option.value + option.quote,
           option.quote +
             (await this.signName(
               code.code + code.parentCode,
-              option.name,
+              select.name,
               option.value,
               "value",
               false
             )) +
             option.quote
         );
-        form_part_signed = form_part_signed.replace(
-          option.matched,
-          option_signed
-        );
+        signedSelect = signedSelect.replace(option.matched, option_signed);
       }
-      html = html.replace(option.matched, form_part_signed);
+      html = html.replace(select.matched, signedSelect);
     }
     return html;
   }
@@ -448,7 +443,7 @@ export class Signer {
       pattern = new RegExp(
         "name=(['\"])" + code.prefix + textarea.name + "['\"]"
       );
-      const textarea_signed = textarea[0].replace(
+      const textarea_signed = textarea.matched.replace(
         pattern,
         "name=$1" +
           (await this.signName(
