@@ -7,7 +7,11 @@ import chaiAsPromised from "chai-as-promised";
 pkg.use(chaiAsPromised);
 const expect = pkg.expect;
 
-describe("Mmac", () => {
+describe("Hmac", () => {
+  it("Uses available crypt as cryptoEngine if none is provided", () => {
+    expect(() => new Hmac("1")).to.throw("crypto is not defined");
+  });
+
   it("Cannot operate with an undefined secret", async () => {
     // @ts-ignore
     const hmac = new Hmac("", {});

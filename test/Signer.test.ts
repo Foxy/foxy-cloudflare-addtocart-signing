@@ -31,53 +31,95 @@ describe("Signer", () => {
     expect(await signer.signUrl(fullURL)).to.equal(signedURL);
   });
 
-  it("Signs a whole HTML string with links", async () => {
-    const signedHTML = await signer.signHtml(htmlLinks);
-    // e.g: ||aed2692b1b278b04b974c3c9822e597dc5da880561cf256ab20b2873a5346b66=
-    const signatureRegex = /=[^&]*\|\|signed/;
-    const expectedAttributeMatches = [/name/, /price/, /quantity/];
-    for (const p of expectedAttributeMatches) {
-      const toMatch = new RegExp(p.source + signatureRegex.source, "g");
-      const signedItems = signedHTML!.match(toMatch);
-      expect(signedItems).to.exist;
-      expect(signedItems).to.have.length(3);
-    }
+  it("Signs an HTML form", async () => {
+    const signedForm = await signer.signForm(htmlForms);
+    const matches = signedForm.match(/\|\|signed/g);
+    expect(matches).to.exist;
+    expect(matches!.length).to.equal(8);
   });
 
-  it("Signs an HTML string with a form", async () => {
-    const signedHTML = signer.signHtml(htmlPageWithForm);
-    // e.g: ||aed2692b1b278b04b974c3c9822e597dc5da880561cf256ab20b2873a5346b66=
-    const namePrefixRegex = /name="\d{1,3}:/;
-    const valuePrefixRegex = /value="\d{1,3}:/;
-    const signatureRegex = /\|\|signed/;
-    const expectedAttributeMatches: [RegExp, RegExp, number][] = [
-      [namePrefixRegex, /name/, 5],
-      [namePrefixRegex, /price/, 5],
-      [namePrefixRegex, /code/, 5],
-      [namePrefixRegex, /quantity/, 5],
-    ];
-    for (const p of expectedAttributeMatches) {
-      const toMatch = new RegExp(
-        p[0].source + p[1].source + signatureRegex.source,
-        "g"
-      );
-      const signed = await signedHTML;
-      const signedItems = signed.match(toMatch);
-      expect(signedItems).to.exist;
-      expect(signedItems).to.have.length(p[2]);
-    }
-    const expectedOptions: [RegExp, number][] = [
-      [/small{p-2}/, 5],
-      [/medium/, 5],
-      [/large{p\+3}/, 5],
-    ];
-    for (const p of expectedOptions) {
-      const toMatch = new RegExp(p[0].source + signatureRegex.source, "g");
-      const signed = await signedHTML;
-      const signedItems = signed.match(toMatch);
-      expect(signedItems).to.exist;
-      expect(signedItems).to.have.length(p[1]);
-    }
+  it("Does not re-sign an HTML form", async () => {
+    const signedForm = await signer.signForm(htmlForms);
+    expect(await signer.signForm(signedForm)).to.equal(signedForm);
+  });
+
+  it("Does not sign empty codes", async () => {
+    const emptyCodes = `
+    <form action="http://mydomain.com/cart/">
+      <input type="hidden" name="code" value="">
+      <input type="hidden" name="name" value="foo">
+      <input type="hidden" name="price" value="10">
+      <select name="color">
+        <option value="blue">blue</option>
+        <option value="red">red</option>
+      </select>
+    </form>
+    `;
+    expect(await signer.signForm(emptyCodes)).to.equal(emptyCodes);
+  });
+
+  describe("Signs an HTML snippet", () => {
+    describe("Signs a whole HTML string with links", () => {
+      it("Signs unsigned links", async () => {
+        const signedHTML = await signer.signHtml(htmlLinks);
+        const signatureRegex = /=[^&]*\|\|signed/;
+        const expectedAttributeMatches = [/name/, /price/, /quantity/];
+        for (const p of expectedAttributeMatches) {
+          const toMatch = new RegExp(p.source + signatureRegex.source, "g");
+          const signedItems = signedHTML!.match(toMatch);
+          expect(signedItems).to.exist;
+          expect(signedItems).to.have.length(3);
+        }
+      });
+
+      it("Does not sign signed links", async () => {
+        const signedHTML = await signer.signHtml(htmlLinks);
+        expect(await signer.signHtml(signedHTML)).to.equal(signedHTML);
+      });
+    });
+
+    describe("Signs a whole HTML with forms", () => {
+      it("Signs an HTML string with a form", async () => {
+        const signedHTML = signer.signHtml(htmlPageWithForm);
+        // e.g: ||aed2692b1b278b04b974c3c9822e597dc5da880561cf256ab20b2873a5346b66=
+        const namePrefixRegex = /name="\d{1,3}:/;
+        const valuePrefixRegex = /value="\d{1,3}:/;
+        const signatureRegex = /\|\|signed/;
+        const expectedAttributeMatches: [RegExp, RegExp, number][] = [
+          [namePrefixRegex, /name/, 5],
+          [namePrefixRegex, /price/, 5],
+          [namePrefixRegex, /code/, 5],
+          [namePrefixRegex, /quantity/, 5],
+        ];
+        for (const p of expectedAttributeMatches) {
+          const toMatch = new RegExp(
+            p[0].source + p[1].source + signatureRegex.source,
+            "g"
+          );
+          const signed = await signedHTML;
+          const signedItems = signed.match(toMatch);
+          expect(signedItems).to.exist;
+          expect(signedItems).to.have.length(p[2]);
+        }
+        const expectedOptions: [RegExp, number][] = [
+          [/small{p-2}/, 5],
+          [/medium/, 5],
+          [/large{p\+3}/, 5],
+        ];
+        for (const p of expectedOptions) {
+          const toMatch = new RegExp(p[0].source + signatureRegex.source, "g");
+          const signed = await signedHTML;
+          const signedItems = signed.match(toMatch);
+          expect(signedItems).to.exist;
+          expect(signedItems).to.have.length(p[1]);
+        }
+      });
+
+      it("Does not sign signed forms", async () => {
+        const signedHTML = await signer.signHtml(htmlPageWithForm);
+        expect(await signer.signHtml(signedHTML)).to.equal(signedHTML);
+      });
+    });
   });
 });
 
