@@ -49,7 +49,7 @@ export class Hmac {
       await this.__getKey(),
       encodedMessage
     );
-    return toHex(new Uint8Array(signature));
+    return toHex(new Buffer(signature));
   }
 
   async __getKey(): Promise<CryptoKey> {

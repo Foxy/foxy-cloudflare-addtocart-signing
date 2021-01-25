@@ -23,8 +23,7 @@ describe("Hmac", () => {
     const hmac = new Hmac("1", new MockHmac());
     const message = "foo";
     // @ts-ignore
-    global.btoa = (s) => "b64 " + s;
     const signed = await hmac.sign(message);
-    expect(signed).to.equal("b64 signed");
+    expect(signed).to.equal("7369676e6564");
   });
 });

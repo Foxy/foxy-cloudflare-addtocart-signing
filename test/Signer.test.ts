@@ -28,10 +28,10 @@ describe("Signer", () => {
       "?code=mycode&name=testname&price=123.00&other_atribute=Some Other Thing";
     const fullURL = uri + queryString;
     const signedQS =
-      "0:code=mycode||signed&" +
-      "0:name=testname||signed&" +
-      "0:price=123.00||signed&" +
-      "0:other_atribute=Some%20Other%20Thing||signed";
+      "code=mycode||signed&" +
+      "name=testname||signed&" +
+      "price=123.00||signed&" +
+      "other_atribute=Some%20Other%20Thing||signed";
 
     it("Signs a query string", async () => {
       const qs = fullURL.replace(/^.*?cart/, "");
@@ -126,7 +126,7 @@ describe("Signer", () => {
       </form>
       `;
       expect(await signer.signForm(emptyValues)).to.equal(
-        emptyValues.replace("code", "0:code||signed")
+        emptyValues.replace("code", "code||signed")
       );
     });
   });
@@ -154,7 +154,7 @@ describe("Signer", () => {
     describe("Signs a whole HTML with forms", () => {
       it("Signs an HTML string with a form", async () => {
         const signedHTML = signer.signHtml(htmlPageWithForm);
-        const namePrefixRegex = /name="\d{1,3}:/;
+        const namePrefixRegex = /name="(\d{1,3}:)?/;
         const signatureRegex = /\|\|signed/;
         const expectedAttributeMatches: [RegExp, RegExp, number][] = [
           [namePrefixRegex, /name/, 5],
@@ -198,7 +198,7 @@ describe("Signer", () => {
       it("does not sign unprefixed cart excludes", async () => {
         for (const exclude of cart_excludes) {
           const url = `http://foo.com/cart?code=100&${exclude}=bar&price=10`;
-          let signed = `http://foo.com/cart?0:code=100||signed&${exclude}=bar&0:price=10||signed`;
+          let signed = `http://foo.com/cart?code=100||signed&${exclude}=bar&price=10||signed`;
           expect(await signer.signUrl(url)).to.equal(signed);
           let form = `
             <form action="http://foo.com/cart">
@@ -208,8 +208,8 @@ describe("Signer", () => {
             </form>
           `;
           signed = form
-            .replace("code", "0:code||signed")
-            .replace("price", "0:price||signed");
+            .replace("code", "code||signed")
+            .replace("price", "price||signed");
           expect(await signer.signForm(form)).to.equal(signed);
           form = `
             <form action="http://foo.com/cart">
@@ -222,8 +222,8 @@ describe("Signer", () => {
             </form>
           `;
           signed = form
-            .replace("code", "0:code||signed")
-            .replace("price", "0:price||signed");
+            .replace("code", "code||signed")
+            .replace("price", "price||signed");
           expect(await signer.signForm(form)).to.equal(signed);
           form = `
             <form action="http://foo.com/cart">
@@ -233,8 +233,8 @@ describe("Signer", () => {
             </form>
           `;
           signed = form
-            .replace("code", "0:code||signed")
-            .replace("price", "0:price||signed");
+            .replace("code", "code||signed")
+            .replace("price", "price||signed");
           expect(await signer.signForm(form)).to.equal(signed);
         }
       });
@@ -242,7 +242,7 @@ describe("Signer", () => {
       it("does not sign cart excludes", async () => {
         for (const exclude of cart_excludes) {
           const url = `http://foo.com/cart?code=100&${exclude}=bar&price=10`;
-          const signed = `http://foo.com/cart?0:code=100||signed&${exclude}=bar&0:price=10||signed`;
+          const signed = `http://foo.com/cart?code=100||signed&${exclude}=bar&price=10||signed`;
           expect(await signer.signUrl(url)).to.equal(signed);
         }
       });
@@ -258,7 +258,7 @@ describe("Signer", () => {
       it("does not exclude prefixes", async () => {
         for (const exclude of cart_excludes_prefixes) {
           const url = `http://foo.com/cart?code=100&${exclude}foo=bar&${exclude}price=10`;
-          const signed = `http://foo.com/cart?0:code=100||signed&${exclude}foo=bar&${exclude}price=10`;
+          const signed = `http://foo.com/cart?code=100||signed&${exclude}foo=bar&${exclude}price=10`;
           expect(await signer.signUrl(url)).to.equal(signed);
         }
       });
@@ -266,7 +266,7 @@ describe("Signer", () => {
       it("does not sign cart excludes in forms with signable fields", async () => {
         for (const exclude of cart_excludes_prefixes) {
           const url = `http://foo.com/cart?code=100&${exclude}foo=bar&price=10`;
-          const signed = `http://foo.com/cart?0:code=100||signed&${exclude}foo=bar&0:price=10||signed`;
+          const signed = `http://foo.com/cart?code=100||signed&${exclude}foo=bar&price=10||signed`;
           expect(await signer.signUrl(url)).to.equal(signed);
         }
       });
