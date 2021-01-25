@@ -2,10 +2,9 @@
 
 ## Overview
 
-This Cloudflare Worker generate [HMAC product verification](https://wiki.foxycart.com/v/2.0/hmac_validation) on the edge.
+This Cloudflare Worker generate [HMAC product verification](https://wiki.foxycart.com/v/2.0/hmac_validation) on [the edge](https://www.cloudflare.com/learning/serverless/glossary/what-is-edge-computing/).
 
-It allows you to generate HMAC verified forms and links for your static pages or pages hosted in third party services.
-
+It allows you to generate HMAC verified forms and links for your static pages or pages hosted in third party services, provided you control the domain.
 
 ## Usage
 
