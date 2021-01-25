@@ -21,9 +21,7 @@ export class MockHmac {
   }
 
   sign() {
-    return this.willFail
-      ? Promise.reject()
-      : Promise.resolve(Buffer.from("signed", "utf8"));
+    return this.willFail ? Promise.reject() : Promise.resolve("signed");
   }
 
   signUrl() {

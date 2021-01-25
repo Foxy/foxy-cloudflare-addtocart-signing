@@ -1,4 +1,3 @@
-import * as buffer from "buffer";
 import { cart_excludes, cart_excludes_prefixes } from "./excludes";
 
 interface Product {
@@ -9,7 +8,7 @@ interface Product {
 }
 
 interface HMACInterface {
-  sign: (s: string) => Promise<Buffer>;
+  sign: (s: string) => Promise<string>;
 }
 
 const OPEN = "--OPEN--";
@@ -233,7 +232,11 @@ export class Signer {
         replacement = pair["amp"] + value + "=";
       } else {
         replacement =
-          pair["amp"] + pair["prefix"] + encodeURI(pair["name"]) + "=" + value;
+          pair["amp"] +
+          (pair["prefix"] != "0:" ? pair["prefix"] : "") +
+          encodeURI(pair["name"]) +
+          "=" +
+          value;
       }
       qs = qs.replace(pair.matched, replacement);
     }
@@ -257,19 +260,15 @@ export class Signer {
       return false;
     }
     option_name = option_name.replace(" ", "_");
-    let hash;
     let value;
+    const hash = await this.hmac!.sign(
+      `${product_code}${option_name}${option_value}`
+    );
     if (option_value == OPEN) {
-      hash = await this.hmac!.sign(
-        `${product_code}${option_name}${option_value}`
-      );
       value = urlEncode
         ? `${encodeURI(option_name)}||${hash}||open`
         : `${option_name}||${hash}||open`;
     } else {
-      hash = await this.hmac!.sign(
-        `${product_code}.${option_name}.${option_value}`
-      );
       if (method == "name") {
         value = urlEncode
           ? `${encodeURI(option_name)}||${hash}`
@@ -426,7 +425,7 @@ export class Signer {
         input_signed = input.replace(
           pattern,
           'name="' +
-            code.prefix +
+            (code.prefix != "0:" ? code.prefix : "") +
             (await this.signName(matchedCode, name, value[2], "name", false)) +
             '"'
         );

@@ -49,7 +49,7 @@ export class Hmac {
       await this.__getKey(),
       encodedMessage
     );
-    return btoa(String.fromCharCode(...Array.from(new Uint8Array(signature))));
+    return toHex(new Uint8Array(signature));
   }
 
   async __getKey(): Promise<CryptoKey> {
@@ -61,4 +61,35 @@ export class Hmac {
       ["sign", "verify"]
     );
   }
+}
+// Pre-Init
+const LUT_HEX_4b = [
+  "0",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "a",
+  "b",
+  "c",
+  "d",
+  "e",
+  "f",
+];
+const LUT_HEX_8b = new Array(0x100);
+for (let n = 0; n < 0x100; n++) {
+  LUT_HEX_8b[n] = `${LUT_HEX_4b[(n >>> 4) & 0xf]}${LUT_HEX_4b[n & 0xf]}`;
+}
+// End Pre-Init
+function toHex(buffer: Buffer): string {
+  let out = "";
+  for (let idx = 0, edx = buffer.length; idx < edx; idx++) {
+    out += LUT_HEX_8b[buffer[idx]];
+  }
+  return out;
 }

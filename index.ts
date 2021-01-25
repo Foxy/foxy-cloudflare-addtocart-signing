@@ -1,7 +1,6 @@
-// global FX_CLIENT_SECRET
 declare const FX_CLIENT_SECRET: string;
 
-import { Signer } from "./src/Signer.ts";
+import { Signer } from "./src/Signer";
 import { Hmac } from "./src/Hmac";
 
 /**
