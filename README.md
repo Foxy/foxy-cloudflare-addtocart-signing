@@ -12,6 +12,7 @@ It allows you to generate HMAC verified forms and links for your static pages or
 - Fork this repository.
 - Configure your client secret using GitHub secrets.
 - Deploy to Cloudflare Workers with one click using the GitHub action.
+- Configure your store to use Cart Validation
 
 ### Prepare your website
 
@@ -62,6 +63,22 @@ If you didn't fork the repository you can use `wrangler secret` to configure you
 If you forked this repository, simply click the Actions page, then click the "Deploy to Cloudflare Workers" workflow and run it under "Run workflow".
 
 If you are using wrangler, use `wrangler config` to set your account details, `wrangler secret` to configure your secrets and `wrangler publish` to deploy your worker.
+
+#### Configure your website in Cloudflare to use the worker
+
+With your Cloudflare Worker Deployed you can now configure your website to use this webworker.
+
+- Go to your Cloudflare account and choose your website.
+- Click on "Workers" and then on "Add route".
+- Fill the routes you want the worker to act upon and choose the worker.
+
+### Configure your store to use Cart Validation
+
+Now that your worker is active you need to configure your store to validate the cart.
+
+- Go to your Foxy.io account.
+- Under **Store**, click **advanced**
+- Check the **Would you like to enable cart validation?** box and click on **Update Advanced Features**.
 
 # Development
 
