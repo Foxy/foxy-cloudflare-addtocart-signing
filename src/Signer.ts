@@ -122,7 +122,7 @@ export class Signer {
     let pattern = new RegExp(
       "<a .*?href=(['\"])(?<domain>[^'\"]*?)" +
         this.cartPath +
-        "(.php)??(?<query>.*?)\\1[^>]*?>",
+        "(.php)?\?(?<query>.*?)\1[^>]*?>",
       "gi"
     );
     return matchGroups(html, pattern);
@@ -130,7 +130,7 @@ export class Signer {
 
   private __getFormCodes(form: string): Product[] {
     const regex = new RegExp(
-      "<[^>]*?name=(['\"])(?<prefix>[0-9]{1,3}:)?code\\1[^>]*?>",
+      "<[^>]*?name=(['\"])(?<prefix>[0-9]{1,3}:)?code\1[^>]*?>",
       "ig"
     );
     const codes = matchGroups(form, regex);
@@ -178,7 +178,7 @@ export class Signer {
     const pattern =
       "(?<protocol>https?://)(?<domain>[^?/]*?)" +
       this.cartPath +
-      "(.php)?\\?(?<querystring>.*)";
+      "(.php)?\?(?<querystring>.*)";
     const match = url.match(pattern);
     if (!match || !match.groups) {
       return url;
@@ -356,7 +356,7 @@ export class Signer {
     let pattern = new RegExp(
       "<textarea [^>]*name=(['\"])" +
         this.__prefixRegex(code.prefix) +
-        "(?![0-9]{1,3})(?<name>.+?)\\1[^>]*>(?<value>.*?)</textarea>",
+        "(?![0-9]{1,3})(?<name>.+?)\1[^>]*>(?<value>.*?)</textarea>",
       "isg"
     );
     for (let textarea of matchGroups(html, pattern)) {
@@ -498,7 +498,7 @@ export class Signer {
       const regex = new RegExp(
         `href=(['"])${queryString.domain}${
           this.cartPath
-        }(\.php)?.${queryString.query.replace(/^\?/, "")}\\1`
+        }(\.php)?.${queryString.query.replace(/^\?/, "")}\1`
       );
       if (signed != url) {
         html = html.replace(regex, `href="${signed}"`);
