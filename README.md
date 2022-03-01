@@ -2,9 +2,11 @@
 
 ## Overview
 
-This Cloudflare Worker generate [HMAC product verification](https://wiki.foxycart.com/v/2.0/hmac_validation) on [the edge](https://www.cloudflare.com/learning/serverless/glossary/what-is-edge-computing/).
+This Cloudflare Worker generates [HMAC product verification](https://wiki.foxycart.com/v/2.0/hmac_validation) on [the edge](https://www.cloudflare.com/learning/serverless/glossary/what-is-edge-computing/).
 
 It allows you to generate HMAC verified forms and links for your static pages or pages hosted in third party services, provided you control the domain.
+
+A simple explanation so you know what to expect: you will prepare your website without any hmac signing, deploy the script to Cloudflare as a cloudflare worker, and set up your store's web page in Cloudflare to use the worker. Once this is done, the script will act on your site to cryptographically sign the links and re-render the page with the signed add-to-carts.
 
 ## Usage
 
@@ -16,18 +18,24 @@ It allows you to generate HMAC verified forms and links for your static pages or
 
 ### Prepare your website
 
-The only extra step you may need to do to use HMAC validation is to add a `code` attribute to your products.
+To reduce issues with edge cases, we recommend that you follow these instructions precisely on how to format your form inputs and/or links.
 
-Here is an example using a link:
+- Check to ensure that your forms/links have a `code` input/parameter.
+- `<a>` elements should not contain line breaks
+- Plus signs (+) in product names for links will not currently work. We are working on supporting this. You may use spaces in the name for an add-to-cart link
+- Ensure that there are no extra spaces at the end of form values, for example:
+`<input type="hidden" name="name" value="Blue Shirt "/>`
+will not sign properly
+- There may be other cases not accounted for here. If you find that your add-to-carts aren't signing properly, please reach out to us.
+- Ensure that the `<form>` element `action` attribute value contains the proper URL with `/cart` appended and no extra characters.
+
+Here is an example add-to-cart using a link:
 
 ```html
-<a
-  href="https://YOURCARTDOMAIN.foxycart.com/cart?name=ProductName&code=741&price=19.99"
-  >Buy product</a
->
+<a href="https://YOURCARTDOMAIN.foxycart.com/cart?name=ProductName&code=741&price=19.99">Buy product</a>
 ```
 
-Notice that you don't need to change anything in your website if you are already using a `code` attribute.
+Notice that you don't need to change anything in your website if you are already using a `code` attribute and are following the other requirements listed above.
 
 ### Fork this repository
 
@@ -54,7 +62,9 @@ Using the "New secret" button create the following secrets:
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CF_ACCOUNT_ID`    | This is your Cloudflare Id. To get your ID, click the "Menu" next to Cloudflare's logo and, under "Products", click Workers. Your Client ID will be on the right sidebar. [How to get my Cloudflare Id](https://developers.cloudflare.com/workers/learning/getting-started#6a-obtaining-your-account-id-and-zone-id)                           |
 | `CF_API_TOKEN`     | This is your API token. Click the "API Tokens" tab. Select an appropriate token or create a new one. If you'll use an existing, on the rightmost menu choose "Roll" and copy the token. [How to get my Cloudflare API token](https://developers.cloudflare.com/workers/learning/getting-started#option-1-obtaining-your-api-token-recommended) |
-| `FX_CLIENT_SECRET` | This is your Foxy client secret. This is used to authenticate to your store to get access tokens.                                                                                                                                                                                                                                              |
+| `FX_CLIENT_ID` | This is your Foxy client_id generated from the Integrations page of the Foxy admin. This is used to authenticate to your store to get API access tokens.
+| `FX_CLIENT_SECRET` | This is your Foxy client_secret. This is used to authenticate to your store to get API access tokens.
+| `FX_REFRESH_TOKEN` | This is your Foxy refresh token. This is used to authenticate to your store to get API access tokens.|
 
 If you didn't fork the repository you can use `wrangler secret` to configure your `FX_CLIENT_SECRET`.
 
@@ -63,6 +73,9 @@ If you didn't fork the repository you can use `wrangler secret` to configure you
 If you forked this repository, simply click the Actions page, then click the "Deploy to Cloudflare Workers" workflow and run it under "Run workflow".
 
 If you are using wrangler, use `wrangler config` to set your account details, `wrangler secret` to configure your secrets and `wrangler publish` to deploy your worker.
+
+### Add the Store Secret Environment Variable to the Cloudflare Worker
+Go to the worker's Environment Variables and add a variable called `STORE_SECRET` with the value as the store secret from the advanced settings of your Foxy admin.
 
 #### Configure your website in Cloudflare to use the worker
 
