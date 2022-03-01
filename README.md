@@ -6,7 +6,7 @@ This Cloudflare Worker generates [HMAC product verification](https://wiki.foxyca
 
 It allows you to generate HMAC verified forms and links for your static pages or pages hosted in third party services, provided you control the domain.
 
-A simple explanation so you know what to expect: you will prepare your website without any hmac encoding, deploy the script to Cloudflare as a cloudflare worker, and set up your store's web page in Cloudflare to use the worker. Once this is done, the script will act on your site to encode the links and re-render the page with the encoded add-to-carts.
+A simple explanation so you know what to expect: you will prepare your website without any hmac signing, deploy the script to Cloudflare as a cloudflare worker, and set up your store's web page in Cloudflare to use the worker. Once this is done, the script will act on your site to cryptographically sign the links and re-render the page with the signed add-to-carts.
 
 ## Usage
 
@@ -25,8 +25,8 @@ To reduce issues with edge cases, we recommend that you follow these instruction
 - Plus signs (+) in product names for links will not currently work. We are working on supporting this. You may use spaces in the name for an add-to-cart link
 - Ensure that there are no extra spaces at the end of form values, for example:
 `<input type="hidden" name="name" value="Blue Shirt "/>`
-will not encode properly
-- There may be other cases not accounted for here. If you find that your add-to-carts aren't encoding properly, please reach out to us.
+will not sign properly
+- There may be other cases not accounted for here. If you find that your add-to-carts aren't signing properly, please reach out to us.
 - Ensure that the `<form>` element `action` attribute value contains the proper URL with `/cart` appended and no extra characters.
 
 Here is an example add-to-cart using a link:
