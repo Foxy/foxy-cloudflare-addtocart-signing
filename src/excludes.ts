@@ -9,6 +9,7 @@ export const cart_excludes = [
   "_",
   "_ga",
   "_ke",
+  "fbclid",
   // Cart values
   "cart",
   "fcsid",
